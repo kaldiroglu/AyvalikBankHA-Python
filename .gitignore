@@ -12,3 +12,5 @@ dist/
 htmlcov/
 .idea/
 .vscode/
+Commands.md
+.env

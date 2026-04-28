@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ....domain.model import (
+from .....domain.model import (
     Account,
     AccountStatus,
     AccountType,

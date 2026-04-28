@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ....domain.model import Account, Customer, Transaction
+from .....domain.model import Account, Customer, Transaction
 from ..entity import (
     AccountJpaEntity,
     CustomerJpaEntity,

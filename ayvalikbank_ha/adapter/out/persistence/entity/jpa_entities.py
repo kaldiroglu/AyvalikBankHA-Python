@@ -27,7 +27,9 @@ class CustomerJpaEntity(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     tier: Mapped[str] = mapped_column(String(16), nullable=False, default="STANDARD")
-    current_password_hash: Mapped[str] = mapped_column(String(120), nullable=False)
+    current_password_hash: Mapped[str] = mapped_column(
+        "current_password", String(120), nullable=False
+    )
 
 
 class PasswordHistoryJpaEntity(Base):
