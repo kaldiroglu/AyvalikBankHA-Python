@@ -2,7 +2,7 @@
 
 A teaching example: add **per-account, per-calendar-day cumulative withdrawal limits** to the project, then study where the change lands.
 
-This file describes the feature in this codebase (Python 3.12+ / FastAPI / SQLAlchemy 2.0 async / hexagonal). Sibling files in `AyvalikBankHA1`, `AyvalikBankLA1`, `AyvalikBankHA-NET`, `AyvalikBankLA-NET`, `AyvalikBankLA-Python` describe the same feature in their respective stacks so the impact can be compared side by side.
+This file describes the feature in this codebase (Python 3.12+ / FastAPI / SQLAlchemy 2.0 async / hexagonal). Sibling files in `AyvalikBankHA-JAVA`, `AyvalikBankLA-JAVA`, `AyvalikBankHA-NET`, `AyvalikBankLA-NET`, `AyvalikBankLA-Python` describe the same feature in their respective stacks so the impact can be compared side by side.
 
 ---
 

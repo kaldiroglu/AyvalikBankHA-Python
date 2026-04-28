@@ -1,6 +1,6 @@
 # Ayvalık Bank HA-Python
 
-A banking application built as a learning project to demonstrate **Hexagonal Architecture (Ports & Adapters)** in **Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async)**. Python counterpart to `AyvalikBankHA1` (Java/Spring Boot) and `AyvalikBankHA-NET` (.NET).
+A banking application built as a learning project to demonstrate **Hexagonal Architecture (Ports & Adapters)** in **Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async)**. Python counterpart to `AyvalikBankHA-JAVA` (Java/Spring Boot) and `AyvalikBankHA-NET` (.NET).
 
 ## Tech Stack
 

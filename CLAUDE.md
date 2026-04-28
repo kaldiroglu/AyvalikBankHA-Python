@@ -4,7 +4,7 @@ Guidance for Claude Code when working in this repository.
 
 ## Project
 
-**Ayvalık Bank HA-Python** — Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async) port of `AyvalikBankHA1` (the Java/Spring Boot hexagonal project) and `AyvalikBankHA-NET` (the .NET port). Same use cases, same architectural discipline.
+**Ayvalık Bank HA-Python** — Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async) port of `AyvalikBankHA-JAVA` (the Java/Spring Boot hexagonal project) and `AyvalikBankHA-NET` (the .NET port). Same use cases, same architectural discipline.
 
 ## Commands
 

@@ -1,6 +1,6 @@
 # Architecture — Ayvalık Bank HA-Python
 
-A Python 3.12+ port of `AyvalikBankHA1`, organized as **Hexagonal Architecture (Ports & Adapters)** in idiomatic Python.
+A Python 3.12+ port of `AyvalikBankHA-JAVA`, organized as **Hexagonal Architecture (Ports & Adapters)** in idiomatic Python.
 
 ---
 
