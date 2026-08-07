@@ -1,4 +1,5 @@
 from .app_exceptions import (
+    UnauthorizedAccessException,
     AccountNotOperableException,
     InsufficientFundsException,
     InvalidAccountOperationException,
@@ -10,6 +11,7 @@ from .app_exceptions import (
 )
 
 __all__ = [
+    "UnauthorizedAccessException",
     "AccountNotOperableException",
     "InsufficientFundsException",
     "InvalidAccountOperationException",

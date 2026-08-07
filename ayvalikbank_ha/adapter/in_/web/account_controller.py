@@ -27,31 +27,31 @@ from .dto import (
     TransferRequest,
 )
 
-router = APIRouter(prefix="/api", tags=["account"], dependencies=[Depends(require_customer)])
+router = APIRouter(prefix="/api", tags=["account"])
 
 
 @router.post("/accounts/checking", status_code=201, response_model=AccountResponse)
 async def create_checking(
-    owner_id: UUID,
     body: CreateCheckingAccountRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     od = Money(body.overdraft_limit or 0, body.currency)
     a = await service.open_checking(
-        IOpenCheckingAccountUseCase.Command(owner_id=owner_id, currency=body.currency, overdraft_limit=od)
+        IOpenCheckingAccountUseCase.Command(caller_id=caller.id, currency=body.currency, overdraft_limit=od)
     )
     return AccountResponse.from_domain(a)
 
 
 @router.post("/accounts/savings", status_code=201, response_model=AccountResponse)
 async def create_savings(
-    owner_id: UUID,
     body: CreateSavingsAccountRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     a = await service.open_savings(
         IOpenSavingsAccountUseCase.Command(
-            owner_id=owner_id, currency=body.currency, annual_interest_rate=body.annual_interest_rate
+            caller_id=caller.id, currency=body.currency, annual_interest_rate=body.annual_interest_rate
         )
     )
     return AccountResponse.from_domain(a)
@@ -59,13 +59,13 @@ async def create_savings(
 
 @router.post("/accounts/time-deposit", status_code=201, response_model=AccountResponse)
 async def create_time_deposit(
-    owner_id: UUID,
     body: CreateTimeDepositAccountRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     a = await service.open_time_deposit(
         IOpenTimeDepositAccountUseCase.Command(
-            owner_id=owner_id,
+            caller_id=caller.id,
             currency=body.currency,
             principal=Money(body.principal, body.currency),
             maturity_date=body.maturity_date,
@@ -79,8 +79,9 @@ async def create_time_deposit(
 async def list_accounts(
     customer_id: UUID,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
-    accounts = await service.list_accounts(customer_id)
+    accounts = await service.list_accounts(caller.id, customer_id)
     return [AccountResponse.from_domain(a) for a in accounts]
 
 
@@ -88,8 +89,9 @@ async def list_accounts(
 async def get_balance(
     account_id: UUID,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
-    return BalanceResponse.from_domain(await service.get_balance(account_id))
+    return BalanceResponse.from_domain(await service.get_balance(caller.id, account_id))
 
 
 @router.post("/accounts/{account_id}/deposit", status_code=201, response_model=TransactionResponse)
@@ -97,9 +99,10 @@ async def deposit(
     account_id: UUID,
     body: MoneyOperationRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     tx = await service.deposit(
-        IDepositMoneyUseCase.Command(account_id=account_id, amount=Money(body.amount, body.currency))
+        IDepositMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=Money(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -109,9 +112,10 @@ async def withdraw(
     account_id: UUID,
     body: MoneyOperationRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     tx = await service.withdraw(
-        IWithdrawMoneyUseCase.Command(account_id=account_id, amount=Money(body.amount, body.currency))
+        IWithdrawMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=Money(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -121,9 +125,11 @@ async def transfer(
     account_id: UUID,
     body: TransferRequest,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
     await service.transfer(
         ITransferMoneyUseCase.Command(
+            caller_id=caller.id,
             source_account_id=account_id,
             target_account_id=body.target_account_id,
             amount=Money(body.amount, body.currency),
@@ -136,6 +142,7 @@ async def transfer(
 async def get_transactions(
     account_id: UUID,
     service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    caller=Depends(require_customer),
 ):
-    txs = await service.get_transactions(account_id)
+    txs = await service.get_transactions(caller.id, account_id)
     return [TransactionResponse.from_domain(t) for t in txs]

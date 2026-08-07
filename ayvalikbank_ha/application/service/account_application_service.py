@@ -38,6 +38,7 @@ from ...domain.service import TransferDomainService
 from ..exception import (
     AccountNotOperableException,
     InsufficientFundsException,
+    UnauthorizedAccessException,
     InvalidAccountOperationException,
     LimitExceededException,
     NotFoundException,
@@ -78,19 +79,19 @@ class AccountApplicationService(
     # ── opens ─────────────────────────────────────────────────────────────
 
     async def open_checking(self, cmd: IOpenCheckingAccountUseCase.Command) -> Account:
-        await self._require_customer(cmd.owner_id)
-        a = CheckingAccount.open(cmd.owner_id, cmd.currency, cmd.overdraft_limit)
+        await self._require_customer(cmd.caller_id)
+        a = CheckingAccount.open(cmd.caller_id, cmd.currency, cmd.overdraft_limit)
         return await self._accounts.save(a)
 
     async def open_savings(self, cmd: IOpenSavingsAccountUseCase.Command) -> Account:
-        await self._require_customer(cmd.owner_id)
-        a = SavingsAccount.open(cmd.owner_id, cmd.currency, cmd.annual_interest_rate)
+        await self._require_customer(cmd.caller_id)
+        a = SavingsAccount.open(cmd.caller_id, cmd.currency, cmd.annual_interest_rate)
         return await self._accounts.save(a)
 
     async def open_time_deposit(self, cmd: IOpenTimeDepositAccountUseCase.Command) -> Account:
-        await self._require_customer(cmd.owner_id)
+        await self._require_customer(cmd.caller_id)
         a = TimeDepositAccount.open(
-            cmd.owner_id,
+            cmd.caller_id,
             cmd.currency,
             cmd.principal,
             cmd.maturity_date,
@@ -102,6 +103,7 @@ class AccountApplicationService(
 
     async def deposit(self, cmd: IDepositMoneyUseCase.Command) -> Transaction:
         a = await self._require_account(cmd.account_id)
+        self._require_owner(a, cmd.caller_id)
         try:
             tx = a.deposit(cmd.amount)
         except PermissionError as e:
@@ -113,6 +115,7 @@ class AccountApplicationService(
 
     async def withdraw(self, cmd: IWithdrawMoneyUseCase.Command) -> Transaction:
         a = await self._require_account(cmd.account_id)
+        self._require_owner(a, cmd.caller_id)
         owner = await self._require_customer(a.owner_id)
         try:
             self._transfer.require_withdrawal_within_limit(cmd.amount, owner.tier)
@@ -132,6 +135,9 @@ class AccountApplicationService(
             raise InvalidAccountOperationException("Cannot transfer to the same account")
         source = await self._require_account(cmd.source_account_id)
         target = await self._require_account(cmd.target_account_id)
+        self._require_owner(source, cmd.caller_id)
+        # The TARGET is deliberately NOT ownership-checked: sending money to another
+        # customer is the entire point of a transfer.
         source_owner = await self._require_customer(source.owner_id)
 
         try:
@@ -160,15 +166,17 @@ class AccountApplicationService(
 
     # ── reads ─────────────────────────────────────────────────────────────
 
-    async def get_balance(self, account_id: UUID) -> Money:
+    async def get_balance(self, caller_id: UUID, account_id: UUID) -> Money:
         a = await self._require_account(account_id)
+        self._require_owner(a, caller_id)
         return a.balance
 
-    async def get_transactions(self, account_id: UUID) -> list[Transaction]:
-        await self._require_account(account_id)
+    async def get_transactions(self, caller_id: UUID, account_id: UUID) -> list[Transaction]:
+        self._require_owner(await self._require_account(account_id), caller_id)
         return await self._transactions.list_by_account(account_id)
 
-    async def list_accounts(self, customer_id: UUID) -> list[Account]:
+    async def list_accounts(self, caller_id: UUID, customer_id: UUID) -> list[Account]:
+        self._require_self(customer_id, caller_id)
         await self._require_customer(customer_id)
         return await self._accounts.list_by_owner(customer_id)
 
@@ -235,6 +243,17 @@ class AccountApplicationService(
         await self._settings.set_transfer_fee_percent(fee_percent)
 
     # ── helpers ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _require_owner(account: Account, caller_id: UUID) -> None:
+        """The caller must own the account. See AyvalikBankHA-JAVA Refactorings.md entry 3."""
+        if account.owner_id != caller_id:
+            raise UnauthorizedAccessException("Account does not belong to the caller")
+
+    @staticmethod
+    def _require_self(subject: UUID, caller_id: UUID) -> None:
+        if subject != caller_id:
+            raise UnauthorizedAccessException("Callers may only act on their own customer record")
 
     async def _require_account(self, account_id: UUID) -> Account:
         a = await self._accounts.find_by_id(account_id)

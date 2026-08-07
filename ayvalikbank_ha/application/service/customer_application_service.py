@@ -16,6 +16,7 @@ from ..exception import (
     InvalidCredentialsException,
     NotFoundException,
     PasswordReuseException,
+    UnauthorizedAccessException,
     PasswordValidationException,
 )
 
@@ -61,6 +62,10 @@ class CustomerApplicationService(
         return await self._customers.list_all()
 
     async def change_password(self, cmd: IChangePasswordUseCase.Command) -> None:
+        # Checked BEFORE the lookup so a caller cannot probe which customer ids exist
+        # by distinguishing 404 from 403.
+        if cmd.customer_id != cmd.caller_id:
+            raise UnauthorizedAccessException("Callers may only change their own password")
         try:
             self._validator.validate(cmd.new_password)
         except ValueError as e:

@@ -18,9 +18,11 @@ async def change_password(
     customer_id: UUID,
     body: ChangePasswordRequest,
     service: Annotated[CustomerApplicationService, Depends(get_customer_service)],
-    _=Depends(require_customer),
+    caller=Depends(require_customer),
 ) -> dict[str, str]:
     await service.change_password(
-        IChangePasswordUseCase.Command(customer_id=customer_id, new_password=body.new_password)
+        IChangePasswordUseCase.Command(
+            caller_id=caller.id, customer_id=customer_id, new_password=body.new_password
+        )
     )
     return {"status": "ok"}

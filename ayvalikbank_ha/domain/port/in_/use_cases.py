@@ -42,6 +42,7 @@ class IListCustomersUseCase(Protocol):
 class IChangePasswordUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
+        caller_id: UUID
         customer_id: UUID
         new_password: str
 
@@ -65,7 +66,7 @@ class IChangeCustomerTierUseCase(Protocol):
 class IOpenCheckingAccountUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
-        owner_id: UUID
+        caller_id: UUID
         currency: Currency
         overdraft_limit: Money
 
@@ -75,7 +76,7 @@ class IOpenCheckingAccountUseCase(Protocol):
 class IOpenSavingsAccountUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
-        owner_id: UUID
+        caller_id: UUID
         currency: Currency
         annual_interest_rate: Decimal
 
@@ -85,7 +86,7 @@ class IOpenSavingsAccountUseCase(Protocol):
 class IOpenTimeDepositAccountUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
-        owner_id: UUID
+        caller_id: UUID
         currency: Currency
         principal: Money
         maturity_date: date
@@ -99,6 +100,7 @@ class IOpenTimeDepositAccountUseCase(Protocol):
 class IDepositMoneyUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
+        caller_id: UUID
         account_id: UUID
         amount: Money
 
@@ -108,6 +110,7 @@ class IDepositMoneyUseCase(Protocol):
 class IWithdrawMoneyUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
+        caller_id: UUID
         account_id: UUID
         amount: Money
 
@@ -117,6 +120,7 @@ class IWithdrawMoneyUseCase(Protocol):
 class ITransferMoneyUseCase(Protocol):
     @dataclass(frozen=True)
     class Command:
+        caller_id: UUID
         source_account_id: UUID
         target_account_id: UUID
         amount: Money
@@ -125,15 +129,15 @@ class ITransferMoneyUseCase(Protocol):
 
 
 class IGetBalanceUseCase(Protocol):
-    async def get_balance(self, account_id: UUID) -> Money: ...
+    async def get_balance(self, caller_id: UUID, account_id: UUID) -> Money: ...
 
 
 class IGetTransactionsUseCase(Protocol):
-    async def get_transactions(self, account_id: UUID) -> list[Transaction]: ...
+    async def get_transactions(self, caller_id: UUID, account_id: UUID) -> list[Transaction]: ...
 
 
 class IListAccountsUseCase(Protocol):
-    async def list_accounts(self, customer_id: UUID) -> list[Account]: ...
+    async def list_accounts(self, caller_id: UUID, customer_id: UUID) -> list[Account]: ...
 
 
 class IFreezeAccountUseCase(Protocol):
