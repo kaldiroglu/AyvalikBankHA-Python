@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm.exc import StaleDataError
 
 from ....application.exception import (
     AccountNotOperableException,
@@ -27,6 +28,15 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundException)
     async def _not_found(req: Request, exc: NotFoundException) -> JSONResponse:
         return _problem(404, "Not Found", str(exc))
+
+    @app.exception_handler(StaleDataError)
+    async def _conflict(req: Request, exc: StaleDataError) -> JSONResponse:
+        # Two operations modified the same account concurrently and the second one lost.
+        # SQLAlchemy raises this at flush. The detail is fixed rather than str(exc), which
+        # names the table and primary key.
+        return _problem(
+            409, "Conflict", "The account was modified by another operation. Please retry."
+        )
 
     @app.exception_handler(UnauthorizedAccessException)
     async def _forbidden(req: Request, exc: UnauthorizedAccessException) -> JSONResponse:

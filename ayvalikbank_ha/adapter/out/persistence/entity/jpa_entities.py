@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Uuid
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..db import Base
@@ -44,6 +44,14 @@ class PasswordHistoryJpaEntity(Base):
 class AccountJpaEntity(Base):
     __tablename__ = "accounts"
 
+    # Optimistic-lock token, managed entirely by SQLAlchemy.
+    #
+    # Without it two concurrent withdrawals both read the same balance, both write their own
+    # result, and one silently disappears while both transaction rows persist - leaving the
+    # balance disagreeing with the ledger.
+    # Mirrors AyvalikBankHA-JAVA Refactorings.md entry 5.
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
     id: Mapped[UUID] = mapped_column(_uuid(), primary_key=True)
     owner_id: Mapped[UUID] = mapped_column(
         _uuid(), ForeignKey("customers.id"), nullable=False, index=True
@@ -61,6 +69,8 @@ class AccountJpaEntity(Base):
     opened_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     maturity_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     matured: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    __mapper_args__ = {"version_id_col": version}
 
 
 class TransactionJpaEntity(Base):
