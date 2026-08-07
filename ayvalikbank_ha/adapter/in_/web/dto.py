@@ -4,7 +4,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic.alias_generators import to_camel
 
 from ...out.persistence.mapper import AccountMapper  # noqa: F401 — keep import order stable
 from ....domain.model import (
@@ -20,64 +21,82 @@ from ....domain.model import (
 )
 
 
+class _CamelModel(BaseModel):
+    """Base for every request and response DTO.
+
+    The wire format is **camelCase** in all six implementations, so a client written against any
+    one of them works against all of them. Python attribute names stay snake_case; Pydantic's
+    alias generator bridges the two. `populate_by_name` keeps snake_case construction working in
+    tests and internal code.
+
+    See AyvalikBankContractTests - the shared HTTP contract suite that pins this.
+    """
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        serialize_by_alias=True,
+    )
+
+
 # ── Requests ───────────────────────────────────────────────────────────────
 
 
-class CreateCustomerRequest(BaseModel):
+class CreateCustomerRequest(_CamelModel):
     name: str = Field(min_length=1, max_length=100)
     email: EmailStr
     password: str
 
 
-class ChangePasswordRequest(BaseModel):
+class ChangePasswordRequest(_CamelModel):
     new_password: str
 
 
-class ChangeCustomerTierRequest(BaseModel):
+class ChangeCustomerTierRequest(_CamelModel):
     tier: CustomerTier
 
 
-class CreateCheckingAccountRequest(BaseModel):
+class CreateCheckingAccountRequest(_CamelModel):
     currency: Currency
     overdraft_limit: Decimal | None = Field(default=None, ge=0)
 
 
-class CreateSavingsAccountRequest(BaseModel):
+class CreateSavingsAccountRequest(_CamelModel):
     currency: Currency
     annual_interest_rate: Decimal = Field(ge=0, le=10)
 
 
-class CreateTimeDepositAccountRequest(BaseModel):
+class CreateTimeDepositAccountRequest(_CamelModel):
     currency: Currency
     principal: Decimal = Field(gt=0)
     maturity_date: date
     annual_interest_rate: Decimal = Field(ge=0, le=10)
 
 
-class AccrueInterestRequest(BaseModel):
+class AccrueInterestRequest(_CamelModel):
     year: int = Field(ge=2000, le=2100)
     month: int = Field(ge=1, le=12)
 
 
-class MoneyOperationRequest(BaseModel):
+class MoneyOperationRequest(_CamelModel):
     amount: Decimal = Field(gt=0)
     currency: Currency
 
 
-class TransferRequest(BaseModel):
+class TransferRequest(_CamelModel):
     target_account_id: UUID
     amount: Decimal = Field(gt=0)
     currency: Currency
 
 
-class SetTransferFeeRequest(BaseModel):
+class SetTransferFeeRequest(_CamelModel):
     fee_percent: Decimal = Field(ge=0, le=100)
 
 
 # ── Responses ──────────────────────────────────────────────────────────────
 
 
-class CustomerResponse(BaseModel):
+class CustomerResponse(_CamelModel):
     id: UUID
     name: str
     email: str
@@ -91,7 +110,7 @@ class CustomerResponse(BaseModel):
         )
 
 
-class AccountResponse(BaseModel):
+class AccountResponse(_CamelModel):
     id: UUID
     owner_id: UUID
     currency: str
@@ -136,7 +155,7 @@ class AccountResponse(BaseModel):
         return AccountResponse(**base)
 
 
-class BalanceResponse(BaseModel):
+class BalanceResponse(_CamelModel):
     amount: Decimal
     currency: str
 
@@ -145,7 +164,7 @@ class BalanceResponse(BaseModel):
         return BalanceResponse(amount=m.amount, currency=m.currency.value)
 
 
-class TransactionResponse(BaseModel):
+class TransactionResponse(_CamelModel):
     id: UUID
     account_id: UUID
     type: str

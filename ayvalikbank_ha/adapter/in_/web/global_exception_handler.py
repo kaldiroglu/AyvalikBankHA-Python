@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm.exc import StaleDataError
 
@@ -25,6 +26,15 @@ def _problem(status: int, title: str, detail: str) -> JSONResponse:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def _validation(req: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI answers 422 by default; the other four implementations answer 400 for a
+        # malformed request body, and the shared contract suite pins 400.
+        detail = "; ".join(
+            f"{'.'.join(str(p) for p in e['loc'][1:])}: {e['msg']}" for e in exc.errors()
+        )
+        return _problem(400, "Bad Request", detail)
+
     @app.exception_handler(NotFoundException)
     async def _not_found(req: Request, exc: NotFoundException) -> JSONResponse:
         return _problem(404, "Not Found", str(exc))
