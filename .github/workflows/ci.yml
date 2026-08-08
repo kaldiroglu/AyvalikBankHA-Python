@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Unit tests + shared HTTP contract
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" aiosqlite
+
+      - name: Unit and service tests
+        run: pytest -q
+
+      # ── shared HTTP contract ──────────────────────────────────────────────
+      # AyvalikBankContractTests is one black-box suite run against all six
+      # implementations. It is what proves the six behave identically; without it
+      # a divergence between repositories goes unnoticed.
+      - name: Check out the shared contract suite
+        uses: actions/checkout@v4
+        with:
+          repository: kaldiroglu/AyvalikBankContractTests
+          path: contract-tests
+
+      - name: Install the contract suite
+        run: pip install -e "./contract-tests[dev]"
+
+      # SQLite keeps CI free of a database service; the contract is HTTP-level,
+      # so the storage engine behind it does not affect what is being asserted.
+      - name: Start the application
+        run: |
+          DATABASE_URL="sqlite+aiosqlite:///./ci.db" \
+            python -m uvicorn ayvalikbank_ha.main:app --port 8080 --log-level warning &
+          for i in $(seq 1 40); do
+            if curl -sf -o /dev/null -u "$ADMIN" http://localhost:8080/api/admin/customers; then
+              echo "application up after ~${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "application did not start within 40s"; exit 1
+        env:
+          ADMIN: 'admin@ayvalikbank.dev:Admin@123!'
+
+      - name: Run the shared contract suite
+        run: pytest -q contract-tests/tests
+        env:
+          BANK_BASE_URL: http://localhost:8080
