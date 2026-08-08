@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from ....application.service import AccountApplicationService, CustomerApplicationService
 from ....domain.port.in_.ports import (
     IAccountAdministrationPort,
+    IBankSettingsPort,
     ICustomerAdministrationPort,
 )
 from .deps import get_account_service, get_customer_service, require_admin
