@@ -18,22 +18,10 @@ from ...domain.model import (
     TimeDepositAccount,
     Transaction,
 )
-from ...domain.port.in_ import (
-    IAccrueInterestUseCase,
-    ICloseAccountUseCase,
-    IDepositMoneyUseCase,
-    IFreezeAccountUseCase,
-    IGetBalanceUseCase,
-    IGetTransactionsUseCase,
-    IListAccountsUseCase,
-    IMatureTimeDepositUseCase,
-    IOpenCheckingAccountUseCase,
-    IOpenSavingsAccountUseCase,
-    IOpenTimeDepositAccountUseCase,
-    ISetTransferFeeUseCase,
-    ITransferMoneyUseCase,
-    IUnfreezeAccountUseCase,
-    IWithdrawMoneyUseCase,
+from ...domain.port.in_.ports import (
+    IAccountAdministrationPort,
+    IBankSettingsPort,
+    ICustomerAccountPort,
 )
 from ...domain.port.out import (
     IAccountRepositoryPort,
@@ -53,21 +41,9 @@ from ..exception import (
 
 
 class AccountApplicationService(
-    IOpenCheckingAccountUseCase,
-    IOpenSavingsAccountUseCase,
-    IOpenTimeDepositAccountUseCase,
-    IDepositMoneyUseCase,
-    IWithdrawMoneyUseCase,
-    ITransferMoneyUseCase,
-    IGetBalanceUseCase,
-    IGetTransactionsUseCase,
-    IListAccountsUseCase,
-    IFreezeAccountUseCase,
-    IUnfreezeAccountUseCase,
-    ICloseAccountUseCase,
-    IAccrueInterestUseCase,
-    IMatureTimeDepositUseCase,
-    ISetTransferFeeUseCase,
+    ICustomerAccountPort,
+    IAccountAdministrationPort,
+    IBankSettingsPort,
 ):
     def __init__(
         self,
@@ -85,17 +61,17 @@ class AccountApplicationService(
 
     # ── opens ─────────────────────────────────────────────────────────────
 
-    async def open_checking(self, cmd: IOpenCheckingAccountUseCase.Command) -> Account:
+    async def open_checking(self, cmd: ICustomerAccountPort.OpenCheckingCommand) -> Account:
         await self._require_customer(cmd.caller_id)
         a = CheckingAccount.open(cmd.caller_id, cmd.currency, cmd.overdraft_limit)
         return await self._accounts.save(a)
 
-    async def open_savings(self, cmd: IOpenSavingsAccountUseCase.Command) -> Account:
+    async def open_savings(self, cmd: ICustomerAccountPort.OpenSavingsCommand) -> Account:
         await self._require_customer(cmd.caller_id)
         a = SavingsAccount.open(cmd.caller_id, cmd.currency, cmd.annual_interest_rate)
         return await self._accounts.save(a)
 
-    async def open_time_deposit(self, cmd: IOpenTimeDepositAccountUseCase.Command) -> Account:
+    async def open_time_deposit(self, cmd: ICustomerAccountPort.OpenTimeDepositCommand) -> Account:
         await self._require_customer(cmd.caller_id)
         a = TimeDepositAccount.open(
             cmd.caller_id,
@@ -108,7 +84,7 @@ class AccountApplicationService(
 
     # ── money ops ─────────────────────────────────────────────────────────
 
-    async def deposit(self, cmd: IDepositMoneyUseCase.Command) -> Transaction:
+    async def deposit(self, cmd: ICustomerAccountPort.DepositCommand) -> Transaction:
         a = await self._require_account(cmd.account_id)
         self._require_owner(a, cmd.caller_id)
         try:
@@ -120,7 +96,7 @@ class AccountApplicationService(
         await self._accounts.save(a)
         return await self._transactions.save(tx)
 
-    async def withdraw(self, cmd: IWithdrawMoneyUseCase.Command) -> Transaction:
+    async def withdraw(self, cmd: ICustomerAccountPort.WithdrawCommand) -> Transaction:
         a = await self._require_account(cmd.account_id)
         self._require_owner(a, cmd.caller_id)
         owner = await self._require_customer(a.owner_id)
@@ -137,7 +113,7 @@ class AccountApplicationService(
         await self._accounts.save(a)
         return await self._transactions.save(tx)
 
-    async def transfer(self, cmd: ITransferMoneyUseCase.Command) -> None:
+    async def transfer(self, cmd: ICustomerAccountPort.TransferCommand) -> None:
         if cmd.source_account_id == cmd.target_account_id:
             raise InvalidAccountOperationException("Cannot transfer to the same account")
         source = await self._require_account(cmd.source_account_id)
@@ -215,7 +191,7 @@ class AccountApplicationService(
 
     # ── interest / maturity ──────────────────────────────────────────────
 
-    async def accrue_interest(self, cmd: IAccrueInterestUseCase.Command) -> Transaction:
+    async def accrue_interest(self, cmd: IAccountAdministrationPort.AccrueInterestCommand) -> Transaction:
         a = await self._require_account(cmd.account_id)
         if not isinstance(a, SavingsAccount):
             raise InvalidAccountOperationException(

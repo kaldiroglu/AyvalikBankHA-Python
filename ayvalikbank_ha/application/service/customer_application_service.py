@@ -3,12 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from ...domain.model import Customer, CustomerTier
-from ...domain.port.in_ import (
-    IChangeCustomerTierUseCase,
-    IChangePasswordUseCase,
-    ICreateCustomerUseCase,
-    IDeleteCustomerUseCase,
-    IListCustomersUseCase,
+from ...domain.port.in_.ports import (
+    ICustomerAdministrationPort,
+    ICustomerSelfServicePort,
 )
 from ...domain.port.out import ICustomerRepositoryPort, IPasswordHasherPort
 from ...domain.service import PasswordValidationService
@@ -24,11 +21,8 @@ _PASSWORD_HISTORY = 3
 
 
 class CustomerApplicationService(
-    ICreateCustomerUseCase,
-    IDeleteCustomerUseCase,
-    IListCustomersUseCase,
-    IChangePasswordUseCase,
-    IChangeCustomerTierUseCase,
+    ICustomerAdministrationPort,
+    ICustomerSelfServicePort,
 ):
     def __init__(
         self,
@@ -40,7 +34,7 @@ class CustomerApplicationService(
         self._hasher = hasher
         self._validator = password_validator
 
-    async def create_customer(self, cmd: ICreateCustomerUseCase.Command) -> Customer:
+    async def create_customer(self, cmd: ICustomerAdministrationPort.CreateCustomerCommand) -> Customer:
         try:
             self._validator.validate(cmd.password)
         except ValueError as e:
@@ -61,7 +55,7 @@ class CustomerApplicationService(
     async def list_customers(self) -> list[Customer]:
         return await self._customers.list_all()
 
-    async def change_password(self, cmd: IChangePasswordUseCase.Command) -> None:
+    async def change_password(self, cmd: ICustomerSelfServicePort.ChangePasswordCommand) -> None:
         # Checked BEFORE the lookup so a caller cannot probe which customer ids exist
         # by distinguishing 404 from 403.
         if cmd.customer_id != cmd.caller_id:
@@ -83,7 +77,7 @@ class CustomerApplicationService(
         await self._customers.save(customer)
         await self._customers.push_previous_password_hash(cmd.customer_id, old_hash)
 
-    async def change_customer_tier(self, cmd: IChangeCustomerTierUseCase.Command) -> None:
+    async def change_customer_tier(self, cmd: ICustomerAdministrationPort.ChangeCustomerTierCommand) -> None:
         customer = await self._customers.find_by_id(cmd.customer_id)
         if customer is None:
             raise NotFoundException(f"Customer {cmd.customer_id} not found")

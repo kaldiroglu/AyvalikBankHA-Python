@@ -7,14 +7,10 @@ from fastapi import APIRouter, Depends
 
 from ....application.service import AccountApplicationService
 from ....domain.model import Money, TransactionAmount
-from ....domain.port.in_ import (
-    IDepositMoneyUseCase,
-    IOpenCheckingAccountUseCase,
-    IOpenSavingsAccountUseCase,
-    IOpenTimeDepositAccountUseCase,
-    ITransferMoneyUseCase,
-    IWithdrawMoneyUseCase,
+from ....domain.port.in_.ports import (
+    ICustomerAccountPort,
 )
+from ....domain.port.in_.ports import ICustomerAccountPort
 from .deps import get_account_service, require_customer
 from .dto import (
     AccountResponse,
@@ -33,12 +29,12 @@ router = APIRouter(prefix="/api", tags=["account"])
 @router.post("/accounts/checking", status_code=201, response_model=AccountResponse)
 async def create_checking(
     body: CreateCheckingAccountRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     od = Money(body.overdraft_limit or 0, body.currency)
     a = await service.open_checking(
-        IOpenCheckingAccountUseCase.Command(caller_id=caller.id, currency=body.currency, overdraft_limit=od)
+        ICustomerAccountPort.OpenCheckingCommand(caller_id=caller.id, currency=body.currency, overdraft_limit=od)
     )
     return AccountResponse.from_domain(a)
 
@@ -46,11 +42,11 @@ async def create_checking(
 @router.post("/accounts/savings", status_code=201, response_model=AccountResponse)
 async def create_savings(
     body: CreateSavingsAccountRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     a = await service.open_savings(
-        IOpenSavingsAccountUseCase.Command(
+        ICustomerAccountPort.OpenSavingsCommand(
             caller_id=caller.id, currency=body.currency, annual_interest_rate=body.annual_interest_rate
         )
     )
@@ -60,11 +56,11 @@ async def create_savings(
 @router.post("/accounts/time-deposit", status_code=201, response_model=AccountResponse)
 async def create_time_deposit(
     body: CreateTimeDepositAccountRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     a = await service.open_time_deposit(
-        IOpenTimeDepositAccountUseCase.Command(
+        ICustomerAccountPort.OpenTimeDepositCommand(
             caller_id=caller.id,
             currency=body.currency,
             principal=Money(body.principal, body.currency),
@@ -78,7 +74,7 @@ async def create_time_deposit(
 @router.get("/customers/{customer_id}/accounts", response_model=list[AccountResponse])
 async def list_accounts(
     customer_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     accounts = await service.list_accounts(caller.id, customer_id)
@@ -88,7 +84,7 @@ async def list_accounts(
 @router.get("/accounts/{account_id}/balance", response_model=BalanceResponse)
 async def get_balance(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     return BalanceResponse.from_domain(await service.get_balance(caller.id, account_id))
@@ -98,11 +94,11 @@ async def get_balance(
 async def deposit(
     account_id: UUID,
     body: MoneyOperationRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     tx = await service.deposit(
-        IDepositMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
+        ICustomerAccountPort.DepositCommand(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -111,11 +107,11 @@ async def deposit(
 async def withdraw(
     account_id: UUID,
     body: MoneyOperationRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     tx = await service.withdraw(
-        IWithdrawMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
+        ICustomerAccountPort.WithdrawCommand(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -124,11 +120,11 @@ async def withdraw(
 async def transfer(
     account_id: UUID,
     body: TransferRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     await service.transfer(
-        ITransferMoneyUseCase.Command(
+        ICustomerAccountPort.TransferCommand(
             caller_id=caller.id,
             source_account_id=account_id,
             target_account_id=body.target_account_id,
@@ -141,7 +137,7 @@ async def transfer(
 @router.get("/accounts/{account_id}/transactions", response_model=list[TransactionResponse])
 async def get_transactions(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[ICustomerAccountPort, Depends(get_account_service)],
     caller=Depends(require_customer),
 ):
     txs = await service.get_transactions(caller.id, account_id)

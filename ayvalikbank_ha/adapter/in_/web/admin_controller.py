@@ -6,10 +6,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from ....application.service import AccountApplicationService, CustomerApplicationService
-from ....domain.port.in_ import (
-    IAccrueInterestUseCase,
-    IChangeCustomerTierUseCase,
-    ICreateCustomerUseCase,
+from ....domain.port.in_.ports import (
+    IAccountAdministrationPort,
+    ICustomerAdministrationPort,
 )
 from .deps import get_account_service, get_customer_service, require_admin
 from .dto import (
@@ -27,10 +26,10 @@ router = APIRouter(prefix="/api/admin", tags=["admin"], dependencies=[Depends(re
 @router.post("/customers", status_code=201, response_model=CustomerResponse)
 async def create_customer(
     body: CreateCustomerRequest,
-    service: Annotated[CustomerApplicationService, Depends(get_customer_service)],
+    service: Annotated[ICustomerAdministrationPort, Depends(get_customer_service)],
 ):
     c = await service.create_customer(
-        ICreateCustomerUseCase.Command(name=body.name, email=body.email, password=body.password)
+        ICustomerAdministrationPort.CreateCustomerCommand(name=body.name, email=body.email, password=body.password)
     )
     return CustomerResponse.from_domain(c)
 
@@ -38,14 +37,14 @@ async def create_customer(
 @router.delete("/customers/{customer_id}", status_code=204)
 async def delete_customer(
     customer_id: UUID,
-    service: Annotated[CustomerApplicationService, Depends(get_customer_service)],
+    service: Annotated[ICustomerAdministrationPort, Depends(get_customer_service)],
 ):
     await service.delete_customer(customer_id)
 
 
 @router.get("/customers", response_model=list[CustomerResponse])
 async def list_customers(
-    service: Annotated[CustomerApplicationService, Depends(get_customer_service)],
+    service: Annotated[ICustomerAdministrationPort, Depends(get_customer_service)],
 ):
     customers = await service.list_customers()
     return [CustomerResponse.from_domain(c) for c in customers]
@@ -55,10 +54,10 @@ async def list_customers(
 async def change_tier(
     customer_id: UUID,
     body: ChangeCustomerTierRequest,
-    service: Annotated[CustomerApplicationService, Depends(get_customer_service)],
+    service: Annotated[ICustomerAdministrationPort, Depends(get_customer_service)],
 ):
     await service.change_customer_tier(
-        IChangeCustomerTierUseCase.Command(customer_id=customer_id, new_tier=body.tier)
+        ICustomerAdministrationPort.ChangeCustomerTierCommand(customer_id=customer_id, new_tier=body.tier)
     )
     return {"status": "ok"}
 
@@ -66,7 +65,7 @@ async def change_tier(
 @router.put("/settings/transfer-fee", status_code=200)
 async def set_transfer_fee(
     body: SetTransferFeeRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IBankSettingsPort, Depends(get_account_service)],
 ):
     await service.set_transfer_fee(body.fee_percent)
     return {"status": "ok"}
@@ -75,7 +74,7 @@ async def set_transfer_fee(
 @router.put("/accounts/{account_id}/freeze", status_code=200)
 async def freeze(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IAccountAdministrationPort, Depends(get_account_service)],
 ):
     await service.freeze_account(account_id)
     return {"status": "ok"}
@@ -84,7 +83,7 @@ async def freeze(
 @router.put("/accounts/{account_id}/unfreeze", status_code=200)
 async def unfreeze(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IAccountAdministrationPort, Depends(get_account_service)],
 ):
     await service.unfreeze_account(account_id)
     return {"status": "ok"}
@@ -93,7 +92,7 @@ async def unfreeze(
 @router.put("/accounts/{account_id}/close", status_code=200)
 async def close(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IAccountAdministrationPort, Depends(get_account_service)],
 ):
     await service.close_account(account_id)
     return {"status": "ok"}
@@ -103,10 +102,10 @@ async def close(
 async def accrue_interest(
     account_id: UUID,
     body: AccrueInterestRequest,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IAccountAdministrationPort, Depends(get_account_service)],
 ):
     tx = await service.accrue_interest(
-        IAccrueInterestUseCase.Command(account_id=account_id, year=body.year, month=body.month)
+        IAccountAdministrationPort.AccrueInterestCommand(account_id=account_id, year=body.year, month=body.month)
     )
     return TransactionResponse.from_domain(tx)
 
@@ -114,7 +113,7 @@ async def accrue_interest(
 @router.put("/accounts/{account_id}/mature", status_code=200, response_model=TransactionResponse)
 async def mature(
     account_id: UUID,
-    service: Annotated[AccountApplicationService, Depends(get_account_service)],
+    service: Annotated[IAccountAdministrationPort, Depends(get_account_service)],
 ):
     tx = await service.mature_time_deposit(account_id)
     return TransactionResponse.from_domain(tx)

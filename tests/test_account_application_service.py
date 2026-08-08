@@ -34,14 +34,9 @@ from ayvalikbank_ha.domain.model import (
     SavingsAccount,
     TransactionType,
 )
-from ayvalikbank_ha.domain.port.in_ import (
-    IAccrueInterestUseCase,
-    IDepositMoneyUseCase,
-    IOpenCheckingAccountUseCase,
-    IOpenSavingsAccountUseCase,
-    IOpenTimeDepositAccountUseCase,
-    ITransferMoneyUseCase,
-    IWithdrawMoneyUseCase,
+from ayvalikbank_ha.domain.port.in_.ports import (
+    IAccountAdministrationPort,
+    ICustomerAccountPort,
 )
 from ayvalikbank_ha.domain.service import TransferDomainService
 
@@ -149,7 +144,7 @@ async def test_opens_checking_for_an_existing_customer(service, customers, accou
     owner = customers.add()
 
     a = await service.open_checking(
-        IOpenCheckingAccountUseCase.Command(
+        ICustomerAccountPort.OpenCheckingCommand(
             caller_id=owner.id, currency=Currency.USD, overdraft_limit=Money(Decimal("0"), Currency.USD)
         )
     )
@@ -163,7 +158,7 @@ async def test_opens_savings_for_an_existing_customer(service, customers):
     owner = customers.add()
 
     a = await service.open_savings(
-        IOpenSavingsAccountUseCase.Command(
+        ICustomerAccountPort.OpenSavingsCommand(
             caller_id=owner.id, currency=Currency.USD, annual_interest_rate=Decimal("0.05")
         )
     )
@@ -176,7 +171,7 @@ async def test_opens_time_deposit_for_an_existing_customer(service, customers):
     owner = customers.add()
 
     a = await service.open_time_deposit(
-        IOpenTimeDepositAccountUseCase.Command(
+        ICustomerAccountPort.OpenTimeDepositCommand(
             caller_id=owner.id,
             currency=Currency.USD,
             principal=Money(Decimal("1000"), Currency.USD),
@@ -192,7 +187,7 @@ async def test_opens_time_deposit_for_an_existing_customer(service, customers):
 async def test_opening_for_a_missing_customer_is_not_found(service):
     with pytest.raises(NotFoundException):
         await service.open_checking(
-            IOpenCheckingAccountUseCase.Command(
+            ICustomerAccountPort.OpenCheckingCommand(
                 caller_id=uuid4(), currency=Currency.USD,
                 overdraft_limit=Money(Decimal("0"), Currency.USD),
             )
@@ -208,7 +203,7 @@ async def test_deposit_credits_the_account(service, customers, accounts, transac
     a = _checking(accounts, owner.id)
 
     tx = await service.deposit(
-        IDepositMoneyUseCase.Command(
+        ICustomerAccountPort.DepositCommand(
             caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD))
         )
     )
@@ -222,7 +217,7 @@ async def test_deposit_credits_the_account(service, customers, accounts, transac
 async def test_deposit_into_a_missing_account_is_not_found(service):
     with pytest.raises(NotFoundException):
         await service.deposit(
-            IDepositMoneyUseCase.Command(
+            ICustomerAccountPort.DepositCommand(
                 caller_id=uuid4(), account_id=uuid4(), amount=TransactionAmount.of_money(Money(Decimal("100"), Currency.USD))
             )
         )
@@ -235,7 +230,7 @@ async def test_withdrawal_beyond_the_balance_is_rejected(service, customers, acc
 
     with pytest.raises(InsufficientFundsException):
         await service.withdraw(
-            IWithdrawMoneyUseCase.Command(
+            ICustomerAccountPort.WithdrawCommand(
                 caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("500"), Currency.USD))
             )
         )
@@ -249,7 +244,7 @@ async def test_withdrawal_from_a_frozen_account_is_not_operable(service, custome
 
     with pytest.raises(AccountNotOperableException):
         await service.withdraw(
-            IWithdrawMoneyUseCase.Command(
+            ICustomerAccountPort.WithdrawCommand(
                 caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("10"), Currency.USD))
             )
         )
@@ -265,7 +260,7 @@ async def test_transfer_between_one_customers_own_accounts_is_free(service, cust
     tgt = _checking(accounts, owner.id)
 
     await service.transfer(
-        ITransferMoneyUseCase.Command(
+        ICustomerAccountPort.TransferCommand(
             caller_id=owner.id, source_account_id=src.id, target_account_id=tgt.id,
             amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
@@ -283,7 +278,7 @@ async def test_transfer_between_different_customers_deducts_the_fee(service, cus
     tgt = _checking(accounts, recipient.id)
 
     await service.transfer(
-        ITransferMoneyUseCase.Command(
+        ICustomerAccountPort.TransferCommand(
             caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
             amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
@@ -301,7 +296,7 @@ async def test_premium_tier_halves_the_transfer_fee(service, customers, accounts
     tgt = _checking(accounts, recipient.id)
 
     await service.transfer(
-        ITransferMoneyUseCase.Command(
+        ICustomerAccountPort.TransferCommand(
             caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
             amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
@@ -319,7 +314,7 @@ async def test_transfer_above_the_standard_cap_is_rejected(service, customers, a
 
     with pytest.raises(LimitExceededException):
         await service.transfer(
-            ITransferMoneyUseCase.Command(
+            ICustomerAccountPort.TransferCommand(
                 caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
                 amount=TransactionAmount.of_money(Money(Decimal("5001"), Currency.USD)),
             )
@@ -333,7 +328,7 @@ async def test_withdrawal_above_the_standard_cap_is_rejected(service, customers,
 
     with pytest.raises(LimitExceededException):
         await service.withdraw(
-            IWithdrawMoneyUseCase.Command(
+            ICustomerAccountPort.WithdrawCommand(
                 caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("5001"), Currency.USD))
             )
         )
@@ -388,7 +383,7 @@ async def test_accrues_interest_on_a_savings_account(service, customers, account
     accounts.add(s)
 
     tx = await service.accrue_interest(
-        IAccrueInterestUseCase.Command(account_id=s.id, year=2026, month=4)
+        IAccountAdministrationPort.AccrueInterestCommand(account_id=s.id, year=2026, month=4)
     )
 
     assert tx.type is TransactionType.INTEREST
@@ -401,7 +396,7 @@ async def test_accruing_on_a_non_savings_account_is_rejected(service, customers,
 
     with pytest.raises(InvalidAccountOperationException):
         await service.accrue_interest(
-            IAccrueInterestUseCase.Command(account_id=a.id, year=2026, month=4)
+            IAccountAdministrationPort.AccrueInterestCommand(account_id=a.id, year=2026, month=4)
         )
 
 

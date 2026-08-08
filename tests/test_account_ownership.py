@@ -16,10 +16,8 @@ from ayvalikbank_ha.application.service.account_application_service import (
     AccountApplicationService,
 )
 from ayvalikbank_ha.domain.model import CheckingAccount, Currency, Money
-from ayvalikbank_ha.domain.port.in_ import (
-    IDepositMoneyUseCase,
-    ITransferMoneyUseCase,
-    IWithdrawMoneyUseCase,
+from ayvalikbank_ha.domain.port.in_.ports import (
+    ICustomerAccountPort,
 )
 
 
@@ -75,7 +73,7 @@ async def test_deposit_into_another_customers_account_is_rejected(service, accou
 
     with pytest.raises(UnauthorizedAccessException):
         await service.deposit(
-            IDepositMoneyUseCase.Command(
+            ICustomerAccountPort.DepositCommand(
                 caller_id=uuid4(), account_id=account.id, amount=TransactionAmount.of_money(Money(Decimal("100"), Currency.USD))
             )
         )
@@ -88,7 +86,7 @@ async def test_withdrawal_from_another_customers_account_is_rejected(service, ac
 
     with pytest.raises(UnauthorizedAccessException):
         await service.withdraw(
-            IWithdrawMoneyUseCase.Command(
+            ICustomerAccountPort.WithdrawCommand(
                 caller_id=uuid4(), account_id=account.id, amount=TransactionAmount.of_money(Money(Decimal("10"), Currency.USD))
             )
         )
@@ -103,7 +101,7 @@ async def test_transfer_out_of_another_customers_account_is_rejected(service, ac
 
     with pytest.raises(UnauthorizedAccessException):
         await service.transfer(
-            ITransferMoneyUseCase.Command(
+            ICustomerAccountPort.TransferCommand(
                 caller_id=intruder,
                 source_account_id=source.id,
                 target_account_id=target.id,
