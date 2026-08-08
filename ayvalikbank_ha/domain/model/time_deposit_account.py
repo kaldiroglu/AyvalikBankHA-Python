@@ -9,6 +9,7 @@ from .account_status import AccountStatus
 from .account_type import AccountType
 from .currency import Currency
 from .money import Money
+from .transaction_amount import TransactionAmount
 from .transaction import Transaction
 from .transaction_type import TransactionType
 from .rule_violation import (
@@ -93,23 +94,21 @@ class TimeDepositAccount(Account):
     def matured(self) -> bool:
         return self._matured
 
-    def deposit(self, amount: Money) -> Transaction:
+    def deposit(self, amount: TransactionAmount) -> Transaction:
         raise OperationNotPermittedException("Time deposit principal is locked — further deposits are not allowed")
 
-    def transfer_out(self, amount: Money, fee: Money, target_account_id: UUID) -> Transaction:
+    def transfer_out(self, amount: TransactionAmount, fee: Money, target_account_id: UUID) -> Transaction:
         raise OperationNotPermittedException("Time deposit accounts do not support transfers")
 
-    def withdraw(self, amount: Money) -> Transaction:
+    def withdraw(self, amount: TransactionAmount) -> Transaction:
         self._require_operable()
         if not self._matured:
             raise OperationNotPermittedException("Time deposit has not matured")
         self._require_same_currency(amount)
-        if amount.amount <= Decimal("0"):
-            raise ValueError("Withdrawal amount must be positive")
-        if not self._balance.is_greater_than_or_equal_to(amount):
+        if not self._balance.is_greater_than_or_equal_to(amount.value):
             raise InsufficientBalanceException("Insufficient funds")
-        self._balance = self._balance.subtract(amount)
-        return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount, "Withdrawal")
+        self._balance = self._balance.subtract(amount.value)
+        return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount.value, "Withdrawal")
 
     def mature(self, today: date) -> Transaction:
         # FROZEN accounts can still mature: it's a date-driven system action.

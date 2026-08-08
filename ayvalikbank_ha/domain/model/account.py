@@ -8,6 +8,7 @@ from .account_status import AccountStatus
 from .account_type import AccountType
 from .currency import Currency
 from .money import Money
+from .transaction_amount import TransactionAmount
 from .transaction import Transaction
 from .transaction_type import TransactionType
 
@@ -79,22 +80,22 @@ class Account(ABC):
     # ── Operations: subtypes override ────────────────────────────────────
 
     @abstractmethod
-    def deposit(self, amount: Money) -> Transaction: ...
+    def deposit(self, amount: TransactionAmount) -> Transaction: ...
 
     @abstractmethod
-    def withdraw(self, amount: Money) -> Transaction: ...
+    def withdraw(self, amount: TransactionAmount) -> Transaction: ...
 
     @abstractmethod
-    def transfer_out(self, amount: Money, fee: Money, target_account_id: UUID) -> Transaction: ...
+    def transfer_out(self, amount: TransactionAmount, fee: Money, target_account_id: UUID) -> Transaction: ...
 
-    def transfer_in(self, amount: Money, source_account_id: UUID) -> Transaction:
+    def transfer_in(self, amount: TransactionAmount, source_account_id: UUID) -> Transaction:
         self._require_operable()
         self._require_same_currency(amount)
-        self._balance = self._balance.add(amount)
+        self._balance = self._balance.add(amount.value)
         return Transaction.create(
             self._id,
             TransactionType.TRANSFER_IN,
-            amount,
+            amount.value,
             f"Transfer in from {source_account_id}",
         )
 

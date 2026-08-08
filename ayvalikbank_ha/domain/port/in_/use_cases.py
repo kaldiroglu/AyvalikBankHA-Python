@@ -10,6 +10,7 @@ from typing import Protocol
 from uuid import UUID
 
 from ...model import (
+    TransactionAmount,
     Account,
     Currency,
     Customer,
@@ -102,7 +103,7 @@ class IDepositMoneyUseCase(Protocol):
     class Command:
         caller_id: UUID
         account_id: UUID
-        amount: Money
+        amount: TransactionAmount
 
     async def deposit(self, cmd: "IDepositMoneyUseCase.Command") -> Transaction: ...
 
@@ -112,7 +113,7 @@ class IWithdrawMoneyUseCase(Protocol):
     class Command:
         caller_id: UUID
         account_id: UUID
-        amount: Money
+        amount: TransactionAmount
 
     async def withdraw(self, cmd: "IWithdrawMoneyUseCase.Command") -> Transaction: ...
 
@@ -123,7 +124,7 @@ class ITransferMoneyUseCase(Protocol):
         caller_id: UUID
         source_account_id: UUID
         target_account_id: UUID
-        amount: Money
+        amount: TransactionAmount
 
     async def transfer(self, cmd: "ITransferMoneyUseCase.Command") -> None: ...
 

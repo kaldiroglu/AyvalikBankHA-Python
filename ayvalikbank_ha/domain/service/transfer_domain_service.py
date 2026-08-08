@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from ..model import CustomerTier, Money
+from ..model import CustomerTier, Money, TransactionAmount
 from ..model.rule_violation import (
     TransactionLimitExceededException,
 )
@@ -9,7 +9,7 @@ from ..model.rule_violation import (
 class TransferDomainService:
     def calculate_fee(
         self,
-        amount: Money,
+        amount: TransactionAmount,
         same_customer: bool,
         fee_percent: Decimal,
         source_tier: CustomerTier,
@@ -17,19 +17,19 @@ class TransferDomainService:
         if same_customer:
             return Money.zero(amount.currency)
         scaled_percent = fee_percent * source_tier.fee_multiplier()
-        fee = (amount.amount * scaled_percent / Decimal(100)).quantize(Decimal("0.01"))
+        fee = (amount.value.amount * scaled_percent / Decimal(100)).quantize(Decimal("0.01"))
         return Money(fee, amount.currency)
 
-    def require_transfer_within_limit(self, amount: Money, tier: CustomerTier) -> None:
+    def require_transfer_within_limit(self, amount: TransactionAmount, tier: CustomerTier) -> None:
         cap = tier.max_per_transfer()
-        if cap is not None and amount.amount > cap:
+        if cap is not None and amount.value.amount > cap:
             raise TransactionLimitExceededException(
-                f"Transfer amount {amount.amount} exceeds {tier.value} tier limit of {cap}"
+                f"Transfer amount {amount.value.amount} exceeds {tier.value} tier limit of {cap}"
             )
 
-    def require_withdrawal_within_limit(self, amount: Money, tier: CustomerTier) -> None:
+    def require_withdrawal_within_limit(self, amount: TransactionAmount, tier: CustomerTier) -> None:
         cap = tier.max_per_withdrawal()
-        if cap is not None and amount.amount > cap:
+        if cap is not None and amount.value.amount > cap:
             raise TransactionLimitExceededException(
-                f"Withdrawal amount {amount.amount} exceeds {tier.value} tier limit of {cap}"
+                f"Withdrawal amount {amount.value.amount} exceeds {tier.value} tier limit of {cap}"
             )

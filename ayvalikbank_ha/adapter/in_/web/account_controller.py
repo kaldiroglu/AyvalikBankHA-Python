@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from ....application.service import AccountApplicationService
-from ....domain.model import Money
+from ....domain.model import Money, TransactionAmount
 from ....domain.port.in_ import (
     IDepositMoneyUseCase,
     IOpenCheckingAccountUseCase,
@@ -102,7 +102,7 @@ async def deposit(
     caller=Depends(require_customer),
 ):
     tx = await service.deposit(
-        IDepositMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=Money(body.amount, body.currency))
+        IDepositMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -115,7 +115,7 @@ async def withdraw(
     caller=Depends(require_customer),
 ):
     tx = await service.withdraw(
-        IWithdrawMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=Money(body.amount, body.currency))
+        IWithdrawMoneyUseCase.Command(caller_id=caller.id, account_id=account_id, amount=TransactionAmount.of(body.amount, body.currency))
     )
     return TransactionResponse.from_domain(tx)
 
@@ -132,7 +132,7 @@ async def transfer(
             caller_id=caller.id,
             source_account_id=account_id,
             target_account_id=body.target_account_id,
-            amount=Money(body.amount, body.currency),
+            amount=TransactionAmount.of(body.amount, body.currency),
         )
     )
     return {"status": "ok"}

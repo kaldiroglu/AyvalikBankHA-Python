@@ -4,6 +4,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model import TransactionAmount
+
 from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
 
 from ayvalikbank_ha.domain.model import (
@@ -31,19 +33,19 @@ def test_opens_with_principal_as_balance():
 def test_deposit_rejected():
     a = _new_one_year_usd()
     with pytest.raises(AccountRuleViolation, match="locked"):
-        a.deposit(Money(Decimal("100"), Currency.USD))
+        a.deposit(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)))
 
 
 def test_transfer_out_rejected():
     a = _new_one_year_usd()
     with pytest.raises(AccountRuleViolation, match="do not support"):
-        a.transfer_out(Money(Decimal("100"), Currency.USD), Money(Decimal("0"), Currency.USD), uuid4())
+        a.transfer_out(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)), Money(Decimal("0"), Currency.USD), uuid4())
 
 
 def test_withdraw_before_maturity_rejected():
     a = _new_one_year_usd()
     with pytest.raises(AccountRuleViolation, match="not matured"):
-        a.withdraw(Money(Decimal("100"), Currency.USD))
+        a.withdraw(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)))
 
 
 def test_mature_before_maturity_date_rejected():
@@ -60,7 +62,7 @@ def test_mature_credits_interest_and_allows_withdraw():
     assert tx.type is TransactionType.INTEREST
     assert tx.amount.amount == Decimal("500.00")
     assert a.balance.amount == Decimal("10500.00")
-    a.withdraw(Money(Decimal("2000"), Currency.USD))
+    a.withdraw(TransactionAmount.of_money(Money(Decimal("2000"), Currency.USD)))
     assert a.balance.amount == Decimal("8500.00")
 
 

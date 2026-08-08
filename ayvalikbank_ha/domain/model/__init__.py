@@ -1,5 +1,6 @@
 from .currency import Currency
 from .money import Money
+from .transaction_amount import TransactionAmount
 from .account_status import AccountStatus
 from .account_type import AccountType
 from .account_state import AccountState, ActiveState, FrozenState, ClosedState
@@ -15,6 +16,7 @@ from .time_deposit_account import TimeDepositAccount
 __all__ = [
     "Currency",
     "Money",
+    "TransactionAmount",
     "AccountStatus",
     "AccountType",
     "AccountState",

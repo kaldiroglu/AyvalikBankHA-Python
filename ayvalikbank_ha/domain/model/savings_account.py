@@ -9,6 +9,7 @@ from .account_status import AccountStatus
 from .account_type import AccountType
 from .currency import Currency
 from .money import Money
+from .transaction_amount import TransactionAmount
 from .transaction import Transaction
 from .transaction_type import TransactionType
 from .rule_violation import (
@@ -61,35 +62,31 @@ class SavingsAccount(Account):
     def last_accrual_date(self) -> date | None:
         return self._last_accrual_date
 
-    def deposit(self, amount: Money) -> Transaction:
+    def deposit(self, amount: TransactionAmount) -> Transaction:
         self._require_operable()
         self._require_same_currency(amount)
-        if amount.amount <= Decimal("0"):
-            raise ValueError("Deposit amount must be positive")
-        self._balance = self._balance.add(amount)
-        return Transaction.create(self._id, TransactionType.DEPOSIT, amount, "Deposit")
+        self._balance = self._balance.add(amount.value)
+        return Transaction.create(self._id, TransactionType.DEPOSIT, amount.value, "Deposit")
 
-    def withdraw(self, amount: Money) -> Transaction:
+    def withdraw(self, amount: TransactionAmount) -> Transaction:
         self._require_operable()
         self._require_same_currency(amount)
-        if amount.amount <= Decimal("0"):
-            raise ValueError("Withdrawal amount must be positive")
-        if not self._balance.is_greater_than_or_equal_to(amount):
+        if not self._balance.is_greater_than_or_equal_to(amount.value):
             raise InsufficientBalanceException("Insufficient funds")
-        self._balance = self._balance.subtract(amount)
-        return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount, "Withdrawal")
+        self._balance = self._balance.subtract(amount.value)
+        return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount.value, "Withdrawal")
 
-    def transfer_out(self, amount: Money, fee: Money, target_account_id: UUID) -> Transaction:
+    def transfer_out(self, amount: TransactionAmount, fee: Money, target_account_id: UUID) -> Transaction:
         self._require_operable()
         self._require_same_currency(amount)
-        total_debit = amount.add(fee) if fee.amount > Decimal("0") else amount
+        total_debit = amount.value.add(fee) if fee.amount > Decimal("0") else amount.value
         if not self._balance.is_greater_than_or_equal_to(total_debit):
             raise InsufficientBalanceException("Insufficient funds for transfer including fee")
         self._balance = self._balance.subtract(total_debit)
         desc = f"Transfer out to {target_account_id}"
         if fee.amount > Decimal("0"):
             desc += f" (fee: {fee.amount})"
-        return Transaction.create(self._id, TransactionType.TRANSFER_OUT, amount, desc)
+        return Transaction.create(self._id, TransactionType.TRANSFER_OUT, amount.value, desc)
 
     def accrue_interest(self, year: int, month: int) -> Transaction:
         # FROZEN accounts can still accrue: it's a system action, not a customer action.

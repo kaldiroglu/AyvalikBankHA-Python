@@ -13,6 +13,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model import TransactionAmount
+
 from ayvalikbank_ha.application.exception import (
     AccountNotOperableException,
     InsufficientFundsException,
@@ -135,7 +137,7 @@ def service(accounts, customers, transactions, settings) -> AccountApplicationSe
 def _checking(accounts, owner_id, balance: str = "0") -> CheckingAccount:
     a = CheckingAccount.open(owner_id, Currency.USD)
     if Decimal(balance) > 0:
-        a.deposit(Money(Decimal(balance), Currency.USD))
+        a.deposit(TransactionAmount.of_money(Money(Decimal(balance), Currency.USD)))
     return accounts.add(a)
 
 
@@ -207,7 +209,7 @@ async def test_deposit_credits_the_account(service, customers, accounts, transac
 
     tx = await service.deposit(
         IDepositMoneyUseCase.Command(
-            caller_id=owner.id, account_id=a.id, amount=Money(Decimal("200"), Currency.USD)
+            caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD))
         )
     )
 
@@ -221,7 +223,7 @@ async def test_deposit_into_a_missing_account_is_not_found(service):
     with pytest.raises(NotFoundException):
         await service.deposit(
             IDepositMoneyUseCase.Command(
-                caller_id=uuid4(), account_id=uuid4(), amount=Money(Decimal("100"), Currency.USD)
+                caller_id=uuid4(), account_id=uuid4(), amount=TransactionAmount.of_money(Money(Decimal("100"), Currency.USD))
             )
         )
 
@@ -234,7 +236,7 @@ async def test_withdrawal_beyond_the_balance_is_rejected(service, customers, acc
     with pytest.raises(InsufficientFundsException):
         await service.withdraw(
             IWithdrawMoneyUseCase.Command(
-                caller_id=owner.id, account_id=a.id, amount=Money(Decimal("500"), Currency.USD)
+                caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("500"), Currency.USD))
             )
         )
 
@@ -248,7 +250,7 @@ async def test_withdrawal_from_a_frozen_account_is_not_operable(service, custome
     with pytest.raises(AccountNotOperableException):
         await service.withdraw(
             IWithdrawMoneyUseCase.Command(
-                caller_id=owner.id, account_id=a.id, amount=Money(Decimal("10"), Currency.USD)
+                caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("10"), Currency.USD))
             )
         )
 
@@ -265,7 +267,7 @@ async def test_transfer_between_one_customers_own_accounts_is_free(service, cust
     await service.transfer(
         ITransferMoneyUseCase.Command(
             caller_id=owner.id, source_account_id=src.id, target_account_id=tgt.id,
-            amount=Money(Decimal("200"), Currency.USD),
+            amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
     )
 
@@ -283,7 +285,7 @@ async def test_transfer_between_different_customers_deducts_the_fee(service, cus
     await service.transfer(
         ITransferMoneyUseCase.Command(
             caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
-            amount=Money(Decimal("200"), Currency.USD),
+            amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
     )
 
@@ -301,7 +303,7 @@ async def test_premium_tier_halves_the_transfer_fee(service, customers, accounts
     await service.transfer(
         ITransferMoneyUseCase.Command(
             caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
-            amount=Money(Decimal("200"), Currency.USD),
+            amount=TransactionAmount.of_money(Money(Decimal("200"), Currency.USD)),
         )
     )
 
@@ -319,7 +321,7 @@ async def test_transfer_above_the_standard_cap_is_rejected(service, customers, a
         await service.transfer(
             ITransferMoneyUseCase.Command(
                 caller_id=sender.id, source_account_id=src.id, target_account_id=tgt.id,
-                amount=Money(Decimal("5001"), Currency.USD),
+                amount=TransactionAmount.of_money(Money(Decimal("5001"), Currency.USD)),
             )
         )
 
@@ -332,7 +334,7 @@ async def test_withdrawal_above_the_standard_cap_is_rejected(service, customers,
     with pytest.raises(LimitExceededException):
         await service.withdraw(
             IWithdrawMoneyUseCase.Command(
-                caller_id=owner.id, account_id=a.id, amount=Money(Decimal("5001"), Currency.USD)
+                caller_id=owner.id, account_id=a.id, amount=TransactionAmount.of_money(Money(Decimal("5001"), Currency.USD))
             )
         )
 
@@ -382,7 +384,7 @@ async def test_freezing_a_missing_account_is_not_found(service):
 async def test_accrues_interest_on_a_savings_account(service, customers, accounts):
     owner = customers.add()
     s = SavingsAccount.open(owner.id, Currency.USD, Decimal("0.12"))
-    s.deposit(Money(Decimal("1000"), Currency.USD))
+    s.deposit(TransactionAmount.of_money(Money(Decimal("1000"), Currency.USD)))
     accounts.add(s)
 
     tx = await service.accrue_interest(

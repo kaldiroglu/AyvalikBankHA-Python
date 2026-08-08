@@ -9,6 +9,8 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model import TransactionAmount
+
 from ayvalikbank_ha.application.exception import UnauthorizedAccessException
 from ayvalikbank_ha.application.service.account_application_service import (
     AccountApplicationService,
@@ -74,7 +76,7 @@ async def test_deposit_into_another_customers_account_is_rejected(service, accou
     with pytest.raises(UnauthorizedAccessException):
         await service.deposit(
             IDepositMoneyUseCase.Command(
-                caller_id=uuid4(), account_id=account.id, amount=Money(Decimal("100"), Currency.USD)
+                caller_id=uuid4(), account_id=account.id, amount=TransactionAmount.of_money(Money(Decimal("100"), Currency.USD))
             )
         )
     assert accounts.saved == []
@@ -87,7 +89,7 @@ async def test_withdrawal_from_another_customers_account_is_rejected(service, ac
     with pytest.raises(UnauthorizedAccessException):
         await service.withdraw(
             IWithdrawMoneyUseCase.Command(
-                caller_id=uuid4(), account_id=account.id, amount=Money(Decimal("10"), Currency.USD)
+                caller_id=uuid4(), account_id=account.id, amount=TransactionAmount.of_money(Money(Decimal("10"), Currency.USD))
             )
         )
     assert accounts.saved == []
@@ -105,7 +107,7 @@ async def test_transfer_out_of_another_customers_account_is_rejected(service, ac
                 caller_id=intruder,
                 source_account_id=source.id,
                 target_account_id=target.id,
-                amount=Money(Decimal("10"), Currency.USD),
+                amount=TransactionAmount.of_money(Money(Decimal("10"), Currency.USD)),
             )
         )
     assert accounts.saved == []

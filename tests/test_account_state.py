@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model import TransactionAmount
+
 from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
 
 from ayvalikbank_ha.domain.model import (
@@ -78,19 +80,19 @@ def test_frozen_blocks_deposit():
     a = _new_active()
     a.freeze()
     with pytest.raises(AccountRuleViolation, match="frozen"):
-        a.deposit(Money(Decimal("100"), Currency.USD))
+        a.deposit(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)))
 
 
 def test_frozen_blocks_withdraw():
     a = _new_active()
-    a.deposit(Money(Decimal("100"), Currency.USD))
+    a.deposit(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)))
     a.freeze()
     with pytest.raises(AccountRuleViolation, match="frozen"):
-        a.withdraw(Money(Decimal("50"), Currency.USD))
+        a.withdraw(TransactionAmount.of_money(Money(Decimal("50"), Currency.USD)))
 
 
 def test_closed_blocks_deposit():
     a = _new_active()
     a.close()
     with pytest.raises(AccountRuleViolation, match="closed"):
-        a.deposit(Money(Decimal("100"), Currency.USD))
+        a.deposit(TransactionAmount.of_money(Money(Decimal("100"), Currency.USD)))
