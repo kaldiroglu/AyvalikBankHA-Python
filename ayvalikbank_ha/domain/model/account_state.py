@@ -3,6 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from .account_status import AccountStatus
+from .rule_violation import (
+    AccountNotActiveException,
+)
 
 
 class AccountState(ABC):
@@ -43,7 +46,7 @@ class ActiveState(AccountState):
         return FROZEN
 
     def unfreeze(self) -> AccountState:
-        raise PermissionError("Account is not frozen")
+        raise AccountNotActiveException("Account is not frozen")
 
     def close(self) -> AccountState:
         return CLOSED
@@ -58,7 +61,7 @@ class FrozenState(AccountState):
         return AccountStatus.FROZEN
 
     def freeze(self) -> AccountState:
-        raise PermissionError("Account is already frozen")
+        raise AccountNotActiveException("Account is already frozen")
 
     def unfreeze(self) -> AccountState:
         return ACTIVE
@@ -67,7 +70,7 @@ class FrozenState(AccountState):
         return CLOSED
 
     def require_operable(self) -> None:
-        raise PermissionError("Account is frozen")
+        raise AccountNotActiveException("Account is frozen")
 
 
 class ClosedState(AccountState):
@@ -76,16 +79,16 @@ class ClosedState(AccountState):
         return AccountStatus.CLOSED
 
     def freeze(self) -> AccountState:
-        raise PermissionError("Cannot freeze a closed account")
+        raise AccountNotActiveException("Cannot freeze a closed account")
 
     def unfreeze(self) -> AccountState:
-        raise PermissionError("Cannot unfreeze a closed account")
+        raise AccountNotActiveException("Cannot unfreeze a closed account")
 
     def close(self) -> AccountState:
-        raise PermissionError("Account is already closed")
+        raise AccountNotActiveException("Account is already closed")
 
     def require_operable(self) -> None:
-        raise PermissionError("Account is closed")
+        raise AccountNotActiveException("Account is closed")
 
     @property
     def is_terminal(self) -> bool:

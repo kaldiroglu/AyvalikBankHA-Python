@@ -11,6 +11,11 @@ from .currency import Currency
 from .money import Money
 from .transaction import Transaction
 from .transaction_type import TransactionType
+from .rule_violation import (
+    AccountNotActiveException,
+    InsufficientBalanceException,
+    OperationNotPermittedException,
+)
 
 
 class TimeDepositAccount(Account):
@@ -89,31 +94,31 @@ class TimeDepositAccount(Account):
         return self._matured
 
     def deposit(self, amount: Money) -> Transaction:
-        raise PermissionError("Time deposit principal is locked — further deposits are not allowed")
+        raise OperationNotPermittedException("Time deposit principal is locked — further deposits are not allowed")
 
     def transfer_out(self, amount: Money, fee: Money, target_account_id: UUID) -> Transaction:
-        raise PermissionError("Time deposit accounts do not support transfers")
+        raise OperationNotPermittedException("Time deposit accounts do not support transfers")
 
     def withdraw(self, amount: Money) -> Transaction:
         self._require_operable()
         if not self._matured:
-            raise PermissionError("Time deposit has not matured")
+            raise OperationNotPermittedException("Time deposit has not matured")
         self._require_same_currency(amount)
         if amount.amount <= Decimal("0"):
             raise ValueError("Withdrawal amount must be positive")
         if not self._balance.is_greater_than_or_equal_to(amount):
-            raise PermissionError("Insufficient funds")
+            raise InsufficientBalanceException("Insufficient funds")
         self._balance = self._balance.subtract(amount)
         return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount, "Withdrawal")
 
     def mature(self, today: date) -> Transaction:
         # FROZEN accounts can still mature: it's a date-driven system action.
         if self.is_terminal:
-            raise PermissionError("Cannot mature a closed account")
+            raise AccountNotActiveException("Cannot mature a closed account")
         if self._matured:
-            raise PermissionError("Account is already matured")
+            raise OperationNotPermittedException("Account is already matured")
         if today < self._maturity_date:
-            raise PermissionError("Maturity date not yet reached")
+            raise OperationNotPermittedException("Maturity date not yet reached")
 
         months = (self._maturity_date.year - self._opened_on.year) * 12 + (
             self._maturity_date.month - self._opened_on.month

@@ -3,6 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
+from ...domain.model.rule_violation import (
+    AccountNotActiveException,
+    AccountRuleViolation,
+    InsufficientBalanceException,
+    OperationNotPermittedException,
+    TransactionLimitExceededException,
+)
 from ...domain.model import (
     Account,
     CheckingAccount,
@@ -106,8 +113,8 @@ class AccountApplicationService(
         self._require_owner(a, cmd.caller_id)
         try:
             tx = a.deposit(cmd.amount)
-        except PermissionError as e:
-            self._reraise_permission(e)
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         except ValueError as e:
             raise InvalidAccountOperationException(str(e)) from e
         await self._accounts.save(a)
@@ -119,12 +126,12 @@ class AccountApplicationService(
         owner = await self._require_customer(a.owner_id)
         try:
             self._transfer.require_withdrawal_within_limit(cmd.amount, owner.tier)
-        except PermissionError as e:
-            raise LimitExceededException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         try:
             tx = a.withdraw(cmd.amount)
-        except PermissionError as e:
-            self._reraise_permission(e)
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         except ValueError as e:
             raise InvalidAccountOperationException(str(e)) from e
         await self._accounts.save(a)
@@ -142,8 +149,8 @@ class AccountApplicationService(
 
         try:
             self._transfer.require_transfer_within_limit(cmd.amount, source_owner.tier)
-        except PermissionError as e:
-            raise LimitExceededException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
 
         same_customer = source.owner_id == target.owner_id
         fee_percent = await self._settings.get_transfer_fee_percent()
@@ -154,8 +161,8 @@ class AccountApplicationService(
         try:
             out_tx = source.transfer_out(cmd.amount, fee, target.id)
             in_tx = target.transfer_in(cmd.amount, source.id)
-        except PermissionError as e:
-            self._reraise_permission(e)
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         except ValueError as e:
             raise InvalidAccountOperationException(str(e)) from e
 
@@ -186,24 +193,24 @@ class AccountApplicationService(
         a = await self._require_account(account_id)
         try:
             a.freeze()
-        except PermissionError as e:
-            raise AccountNotOperableException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         await self._accounts.save(a)
 
     async def unfreeze_account(self, account_id: UUID) -> None:
         a = await self._require_account(account_id)
         try:
             a.unfreeze()
-        except PermissionError as e:
-            raise AccountNotOperableException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         await self._accounts.save(a)
 
     async def close_account(self, account_id: UUID) -> None:
         a = await self._require_account(account_id)
         try:
             a.close()
-        except PermissionError as e:
-            raise AccountNotOperableException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         await self._accounts.save(a)
 
     # ── interest / maturity ──────────────────────────────────────────────
@@ -216,8 +223,8 @@ class AccountApplicationService(
             )
         try:
             tx = a.accrue_interest(cmd.year, cmd.month)
-        except PermissionError as e:
-            raise InvalidAccountOperationException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         await self._accounts.save(a)
         return await self._transactions.save(tx)
 
@@ -230,8 +237,8 @@ class AccountApplicationService(
         today = datetime.now(timezone.utc).date()
         try:
             tx = a.mature(today)
-        except PermissionError as e:
-            raise InvalidAccountOperationException(str(e)) from e
+        except AccountRuleViolation as e:
+            raise self._translate(e) from e
         await self._accounts.save(a)
         return await self._transactions.save(tx)
 
@@ -268,10 +275,22 @@ class AccountApplicationService(
         return c
 
     @staticmethod
-    def _reraise_permission(e: PermissionError) -> None:
-        msg = str(e)
-        if msg.startswith("Insufficient"):
-            raise InsufficientFundsException(msg) from e
-        if "frozen" in msg.lower() or "closed" in msg.lower():
-            raise AccountNotOperableException(msg) from e
-        raise InvalidAccountOperationException(msg) from e
+    def _translate(e: AccountRuleViolation) -> Exception:
+        """Map a domain refusal to the application exception carrying its HTTP meaning.
+
+        Replaces a chain of message tests - str(e).startswith("Insufficient"), "frozen" in
+        msg.lower() - where rewording a domain message silently changed the response status.
+
+        Python has no sealed types, so nothing checks this covers every subtype. The final raise
+        makes a gap fail loudly rather than fall through to a wrong status.
+        See AyvalikBankHA-JAVA Refactorings.md entry 4.
+        """
+        if isinstance(e, AccountNotActiveException):
+            return AccountNotOperableException(str(e))
+        if isinstance(e, InsufficientBalanceException):
+            return InsufficientFundsException(str(e))
+        if isinstance(e, OperationNotPermittedException):
+            return InvalidAccountOperationException(str(e))
+        if isinstance(e, TransactionLimitExceededException):
+            return LimitExceededException(str(e))
+        raise NotImplementedError(f"Unhandled refusal type {type(e).__name__}")

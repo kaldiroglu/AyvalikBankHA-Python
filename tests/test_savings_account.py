@@ -4,6 +4,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import (
     AccountType,
     Currency,
@@ -28,7 +30,7 @@ def test_negative_interest_rate_rejected():
 def test_withdraw_cannot_go_negative():
     a = SavingsAccount.open(uuid4(), Currency.USD, Decimal("0.05"))
     a.deposit(Money(Decimal("50"), Currency.USD))
-    with pytest.raises(PermissionError, match="Insufficient"):
+    with pytest.raises(AccountRuleViolation, match="Insufficient"):
         a.withdraw(Money(Decimal("60"), Currency.USD))
 
 
@@ -46,14 +48,14 @@ def test_accrue_interest_for_same_month_rejected():
     a = SavingsAccount.open(uuid4(), Currency.USD, Decimal("0.12"))
     a.deposit(Money(Decimal("1000"), Currency.USD))
     a.accrue_interest(2026, 4)
-    with pytest.raises(PermissionError, match="already accrued"):
+    with pytest.raises(AccountRuleViolation, match="already accrued"):
         a.accrue_interest(2026, 4)
 
 
 def test_accrue_interest_on_closed_rejected():
     a = SavingsAccount.open(uuid4(), Currency.USD, Decimal("0.05"))
     a.close()
-    with pytest.raises(PermissionError, match="closed"):
+    with pytest.raises(AccountRuleViolation, match="closed"):
         a.accrue_interest(2026, 4)
 
 

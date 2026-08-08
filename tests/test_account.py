@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import (
     AccountStatus,
     CheckingAccount,
@@ -39,7 +41,7 @@ def test_withdraw_decreases_balance():
 def test_withdrawing_more_than_balance_throws():
     a = _new_usd()
     a.deposit(Money(Decimal("100"), Currency.USD))
-    with pytest.raises(PermissionError, match="Insufficient"):
+    with pytest.raises(AccountRuleViolation, match="Insufficient"):
         a.withdraw(Money(Decimal("200"), Currency.USD))
 
 
@@ -52,14 +54,14 @@ def test_deposit_in_wrong_currency_throws():
 def test_freeze_blocks_deposit():
     a = _new_usd()
     a.freeze()
-    with pytest.raises(PermissionError, match="frozen"):
+    with pytest.raises(AccountRuleViolation, match="frozen"):
         a.deposit(Money(Decimal("100"), Currency.USD))
 
 
 def test_close_is_terminal():
     a = _new_usd()
     a.close()
-    with pytest.raises(PermissionError, match="closed"):
+    with pytest.raises(AccountRuleViolation, match="closed"):
         a.freeze()
 
 

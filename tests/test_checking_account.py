@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import (
     AccountStatus,
     AccountType,
@@ -26,7 +28,7 @@ def test_opens_with_overdraft_limit():
 def test_withdraw_without_overdraft_rejects_overdraw():
     a = CheckingAccount.open(uuid4(), Currency.USD)
     a.deposit(Money(Decimal("50"), Currency.USD))
-    with pytest.raises(PermissionError, match="Insufficient"):
+    with pytest.raises(AccountRuleViolation, match="Insufficient"):
         a.withdraw(Money(Decimal("100"), Currency.USD))
 
 
@@ -39,7 +41,7 @@ def test_withdraw_within_overdraft_allows_negative_balance():
 
 def test_withdraw_beyond_overdraft_throws():
     a = CheckingAccount.open(uuid4(), Currency.USD, Money(Decimal("100"), Currency.USD))
-    with pytest.raises(PermissionError, match="overdraft"):
+    with pytest.raises(AccountRuleViolation, match="overdraft"):
         a.withdraw(Money(Decimal("101"), Currency.USD))
 
 

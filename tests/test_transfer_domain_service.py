@@ -2,6 +2,8 @@ from decimal import Decimal
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import Currency, CustomerTier, Money
 from ayvalikbank_ha.domain.service import TransferDomainService
 
@@ -48,7 +50,7 @@ def test_private_tier_is_free(service):
 
 
 def test_standard_transfer_over_cap_throws(service):
-    with pytest.raises(PermissionError, match="5000"):
+    with pytest.raises(AccountRuleViolation, match="5000"):
         service.require_transfer_within_limit(
             Money(Decimal("5001"), Currency.USD), CustomerTier.STANDARD
         )
@@ -61,7 +63,7 @@ def test_standard_transfer_at_cap_passes(service):
 
 
 def test_premium_transfer_over_cap_throws(service):
-    with pytest.raises(PermissionError, match="50000"):
+    with pytest.raises(AccountRuleViolation, match="50000"):
         service.require_transfer_within_limit(
             Money(Decimal("50001"), Currency.USD), CustomerTier.PREMIUM
         )
@@ -74,7 +76,7 @@ def test_private_transfer_has_no_cap(service):
 
 
 def test_standard_withdrawal_over_cap_throws(service):
-    with pytest.raises(PermissionError, match="5000"):
+    with pytest.raises(AccountRuleViolation, match="5000"):
         service.require_withdrawal_within_limit(
             Money(Decimal("5001"), Currency.USD), CustomerTier.STANDARD
         )

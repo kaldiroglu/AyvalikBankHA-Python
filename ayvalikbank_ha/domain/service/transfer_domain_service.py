@@ -1,6 +1,9 @@
 from decimal import Decimal
 
 from ..model import CustomerTier, Money
+from ..model.rule_violation import (
+    TransactionLimitExceededException,
+)
 
 
 class TransferDomainService:
@@ -20,13 +23,13 @@ class TransferDomainService:
     def require_transfer_within_limit(self, amount: Money, tier: CustomerTier) -> None:
         cap = tier.max_per_transfer()
         if cap is not None and amount.amount > cap:
-            raise PermissionError(
+            raise TransactionLimitExceededException(
                 f"Transfer amount {amount.amount} exceeds {tier.value} tier limit of {cap}"
             )
 
     def require_withdrawal_within_limit(self, amount: Money, tier: CustomerTier) -> None:
         cap = tier.max_per_withdrawal()
         if cap is not None and amount.amount > cap:
-            raise PermissionError(
+            raise TransactionLimitExceededException(
                 f"Withdrawal amount {amount.amount} exceeds {tier.value} tier limit of {cap}"
             )

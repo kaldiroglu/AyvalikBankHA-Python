@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import (
     AccountStatus,
     CheckingAccount,
@@ -37,13 +39,13 @@ def test_unfreeze_moves_frozen_to_active():
 def test_freezing_frozen_throws():
     a = _new_active()
     a.freeze()
-    with pytest.raises(PermissionError, match="already frozen"):
+    with pytest.raises(AccountRuleViolation, match="already frozen"):
         a.freeze()
 
 
 def test_unfreezing_active_throws():
     a = _new_active()
-    with pytest.raises(PermissionError, match="not frozen"):
+    with pytest.raises(AccountRuleViolation, match="not frozen"):
         a.unfreeze()
 
 
@@ -64,18 +66,18 @@ def test_close_from_frozen_is_terminal():
 def test_closed_rejects_all_transitions():
     a = _new_active()
     a.close()
-    with pytest.raises(PermissionError, match="closed"):
+    with pytest.raises(AccountRuleViolation, match="closed"):
         a.freeze()
-    with pytest.raises(PermissionError, match="closed"):
+    with pytest.raises(AccountRuleViolation, match="closed"):
         a.unfreeze()
-    with pytest.raises(PermissionError, match="already closed"):
+    with pytest.raises(AccountRuleViolation, match="already closed"):
         a.close()
 
 
 def test_frozen_blocks_deposit():
     a = _new_active()
     a.freeze()
-    with pytest.raises(PermissionError, match="frozen"):
+    with pytest.raises(AccountRuleViolation, match="frozen"):
         a.deposit(Money(Decimal("100"), Currency.USD))
 
 
@@ -83,12 +85,12 @@ def test_frozen_blocks_withdraw():
     a = _new_active()
     a.deposit(Money(Decimal("100"), Currency.USD))
     a.freeze()
-    with pytest.raises(PermissionError, match="frozen"):
+    with pytest.raises(AccountRuleViolation, match="frozen"):
         a.withdraw(Money(Decimal("50"), Currency.USD))
 
 
 def test_closed_blocks_deposit():
     a = _new_active()
     a.close()
-    with pytest.raises(PermissionError, match="closed"):
+    with pytest.raises(AccountRuleViolation, match="closed"):
         a.deposit(Money(Decimal("100"), Currency.USD))

@@ -4,6 +4,8 @@ from uuid import uuid4
 
 import pytest
 
+from ayvalikbank_ha.domain.model.rule_violation import AccountRuleViolation
+
 from ayvalikbank_ha.domain.model import (
     AccountType,
     Currency,
@@ -28,26 +30,26 @@ def test_opens_with_principal_as_balance():
 
 def test_deposit_rejected():
     a = _new_one_year_usd()
-    with pytest.raises(PermissionError, match="locked"):
+    with pytest.raises(AccountRuleViolation, match="locked"):
         a.deposit(Money(Decimal("100"), Currency.USD))
 
 
 def test_transfer_out_rejected():
     a = _new_one_year_usd()
-    with pytest.raises(PermissionError, match="do not support"):
+    with pytest.raises(AccountRuleViolation, match="do not support"):
         a.transfer_out(Money(Decimal("100"), Currency.USD), Money(Decimal("0"), Currency.USD), uuid4())
 
 
 def test_withdraw_before_maturity_rejected():
     a = _new_one_year_usd()
-    with pytest.raises(PermissionError, match="not matured"):
+    with pytest.raises(AccountRuleViolation, match="not matured"):
         a.withdraw(Money(Decimal("100"), Currency.USD))
 
 
 def test_mature_before_maturity_date_rejected():
     a = _new_one_year_usd()
     today = datetime.now(timezone.utc).date()
-    with pytest.raises(PermissionError, match="not yet reached"):
+    with pytest.raises(AccountRuleViolation, match="not yet reached"):
         a.mature(today)
 
 
@@ -65,7 +67,7 @@ def test_mature_credits_interest_and_allows_withdraw():
 def test_mature_twice_rejected():
     a = _new_one_year_usd()
     a.mature(a.maturity_date)
-    with pytest.raises(PermissionError, match="already matured"):
+    with pytest.raises(AccountRuleViolation, match="already matured"):
         a.mature(a.maturity_date)
 
 

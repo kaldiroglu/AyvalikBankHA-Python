@@ -11,6 +11,11 @@ from .currency import Currency
 from .money import Money
 from .transaction import Transaction
 from .transaction_type import TransactionType
+from .rule_violation import (
+    AccountNotActiveException,
+    InsufficientBalanceException,
+    OperationNotPermittedException,
+)
 
 
 class SavingsAccount(Account):
@@ -70,7 +75,7 @@ class SavingsAccount(Account):
         if amount.amount <= Decimal("0"):
             raise ValueError("Withdrawal amount must be positive")
         if not self._balance.is_greater_than_or_equal_to(amount):
-            raise PermissionError("Insufficient funds")
+            raise InsufficientBalanceException("Insufficient funds")
         self._balance = self._balance.subtract(amount)
         return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount, "Withdrawal")
 
@@ -79,7 +84,7 @@ class SavingsAccount(Account):
         self._require_same_currency(amount)
         total_debit = amount.add(fee) if fee.amount > Decimal("0") else amount
         if not self._balance.is_greater_than_or_equal_to(total_debit):
-            raise PermissionError("Insufficient funds for transfer including fee")
+            raise InsufficientBalanceException("Insufficient funds for transfer including fee")
         self._balance = self._balance.subtract(total_debit)
         desc = f"Transfer out to {target_account_id}"
         if fee.amount > Decimal("0"):
@@ -89,13 +94,13 @@ class SavingsAccount(Account):
     def accrue_interest(self, year: int, month: int) -> Transaction:
         # FROZEN accounts can still accrue: it's a system action, not a customer action.
         if self.is_terminal:
-            raise PermissionError("Cannot accrue interest on a closed account")
+            raise AccountNotActiveException("Cannot accrue interest on a closed account")
         if month == 12:
             first_of_next_month = date(year + 1, 1, 1)
         else:
             first_of_next_month = date(year, month + 1, 1)
         if self._last_accrual_date is not None and first_of_next_month <= self._last_accrual_date:
-            raise PermissionError(f"Interest already accrued for or after {year:04d}-{month:02d}")
+            raise OperationNotPermittedException(f"Interest already accrued for or after {year:04d}-{month:02d}")
 
         monthly_rate = self._annual_interest_rate / Decimal(self._MONTHS_PER_YEAR)
         interest_amount = (self._balance.amount * monthly_rate).quantize(Decimal("0.01"))

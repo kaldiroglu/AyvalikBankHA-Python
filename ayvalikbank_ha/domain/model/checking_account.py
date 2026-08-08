@@ -10,6 +10,9 @@ from .currency import Currency
 from .money import Money
 from .transaction import Transaction
 from .transaction_type import TransactionType
+from .rule_violation import (
+    InsufficientBalanceException,
+)
 
 
 class CheckingAccount(Account):
@@ -69,8 +72,8 @@ class CheckingAccount(Account):
         floor = -self._overdraft_limit.amount
         if projected < floor:
             if self._overdraft_limit.amount == Decimal("0"):
-                raise PermissionError("Insufficient funds")
-            raise PermissionError("Withdrawal exceeds overdraft limit")
+                raise InsufficientBalanceException("Insufficient funds")
+            raise InsufficientBalanceException("Withdrawal exceeds overdraft limit")
         self._balance = Money(projected, self._currency)
         return Transaction.create(self._id, TransactionType.WITHDRAWAL, amount, "Withdrawal")
 
@@ -81,7 +84,7 @@ class CheckingAccount(Account):
         projected = self._balance.amount - total_debit.amount
         floor = -self._overdraft_limit.amount
         if projected < floor:
-            raise PermissionError("Insufficient funds for transfer including fee")
+            raise InsufficientBalanceException("Insufficient funds for transfer including fee")
         self._balance = Money(projected, self._currency)
         desc = f"Transfer out to {target_account_id}"
         if fee.amount > Decimal("0"):
