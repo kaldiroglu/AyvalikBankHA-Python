@@ -27,10 +27,10 @@ the change belongs in all six.
 docker compose up -d                                     # Postgres on port 5436
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q                                      # all 66 tests
-.venv/bin/uvicorn ayvalikbank_ha.main:app --reload
+.venv/bin/uvicorn ayvalikbank_ha.main:app --port 8000 --reload
 
-# Run without Docker (uvicorn defaults to port 8000)
-DATABASE_URL="sqlite+aiosqlite:///./dev.db" .venv/bin/uvicorn ayvalikbank_ha.main:app
+# Run without Docker (port 8000; LA-Python uses 8001)
+DATABASE_URL="sqlite+aiosqlite:///./dev.db" .venv/bin/uvicorn ayvalikbank_ha.main:app --port 8000
 ```
 
 ## Environment gotchas

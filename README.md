@@ -22,7 +22,7 @@ For further enquiry please contact Akin Kaldiroglu at akin@kaldiroglu.dev
 ```bash
 docker compose up -d
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/uvicorn ayvalikbank_ha.main:app --reload
+.venv/bin/uvicorn ayvalikbank_ha.main:app --port 8000 --reload
 ```
 
 Default admin: `admin@ayvalikbank.dev` / `Admin@123!` (seeded on first startup)
@@ -93,24 +93,32 @@ tests/                     — pytest unit tests (66)
 ## Ports across the six repos
 
 The six Ayvalık Bank implementations are meant to be compared side by side, so every one
-publishes PostgreSQL on its own host port.
+takes its own application port and its own PostgreSQL port. All six can run at once.
 
 | Repo | App | PostgreSQL | Database |
 |---|---|---|---|
-| `AyvalikBankHA-JAVA` | 8080 | **5437** | `ayvalikbank_ha_java` |
-| `AyvalikBankLA-JAVA` | 8080 | **5438** | `ayvalikbank_la_java` |
-| `AyvalikBankHA-NET` | 5080 | **5434** | `ayvalikbank_ha_net` |
-| `AyvalikBankLA-NET` | 5050 | **5433** | `ayvalikbank_la_net` |
-| `AyvalikBankHA-Python` | 8000 | **5436** | `ayvalikbank` |
-| `AyvalikBankLA-Python` | 8000 | **5435** | `ayvalikbank` |
+| `AyvalikBankHA-JAVA` | **8080** | **5437** | `ayvalikbank_ha_java` |
+| `AyvalikBankLA-JAVA` | **8081** | **5438** | `ayvalikbank_la_java` |
+| `AyvalikBankHA-NET` | **5080** | **5434** | `ayvalikbank_ha_net` |
+| `AyvalikBankLA-NET` | **5050** | **5433** | `ayvalikbank_la_net` |
+| `AyvalikBankHA-Python` | **8000** | **5436** | `ayvalikbank` |
+| `AyvalikBankLA-Python` | **8001** | **5435** | `ayvalikbank` |
 
-- **PostgreSQL ports are all distinct**, so all six databases can run at the same time.
-  **5432 is deliberately left free** for a native PostgreSQL install (Postgres.app, Homebrew) —
-  a container bound to it would collide, and an application pointed at it would silently
-  connect to the native server instead of its own container.
-- **Application ports are not all distinct.** Repos sharing a language fall back to the same
-  framework default — 8080 for Spring Boot, 8000 for uvicorn. To run two of the same language
-  at once, pass an explicit port: `--server.port=8081`, `--port 8001`, or
-  `--urls http://localhost:5081`.
-- `AyvalikBankHA-NET` has no `launchSettings.json`, so 5080 is the convention used in these
-  docs and must be passed with `--urls`. Without it Kestrel binds its own default, 5000.
+**5432 is deliberately left free** for a native PostgreSQL install (Postgres.app, Homebrew).
+A container bound to it collides, and — worse — an application pointed at it connects to the
+native server instead of its own container without any error to say so.
+
+Each stack pins its port differently, because each offers a different mechanism:
+
+| Repo | Where its port comes from |
+|---|---|
+| `AyvalikBankHA-JAVA` | Spring Boot's default 8080 — nothing to configure |
+| `AyvalikBankLA-JAVA` | `server.port=8081` in `application.properties` |
+| `AyvalikBankHA-NET` | no `launchSettings.json`, so `--urls http://localhost:5080` is **required** — without it Kestrel binds 5000 |
+| `AyvalikBankLA-NET` | `AyvalikBankLA.Api/Properties/launchSettings.json` |
+| `AyvalikBankHA-Python` | `--port 8000` on the uvicorn command line |
+| `AyvalikBankLA-Python` | `--port 8001` on the uvicorn command line |
+
+The two Python repos are the fragile pair: uvicorn takes its port as a launch argument and
+has no configuration file to default it in, so **omitting `--port` gives both 8000** and the
+second one to start fails to bind. The documented commands always pass it explicitly.
