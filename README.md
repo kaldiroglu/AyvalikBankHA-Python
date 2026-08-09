@@ -2,6 +2,8 @@
 
 A banking application built as a learning project to demonstrate **Hexagonal Architecture (Ports & Adapters)** in **Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async)**. Python counterpart to `AyvalikBankHA-JAVA` (Java/Spring Boot) and `AyvalikBankHA-NET` (.NET).
 
+For further enquiry please contact Akin Kaldiroglu at akin@kaldiroglu.dev
+
 ## Tech Stack
 
 | Concern          | Technology                                    |

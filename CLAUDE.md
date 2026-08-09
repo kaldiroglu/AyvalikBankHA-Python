@@ -6,14 +6,39 @@ Guidance for Claude Code when working in this repository.
 
 **Ayvalık Bank HA-Python** — Python 3.12+ / FastAPI / SQLAlchemy 2.0 (async) port of `AyvalikBankHA-JAVA` (the Java/Spring Boot hexagonal project) and `AyvalikBankHA-NET` (the .NET port). Same use cases, same architectural discipline.
 
+## Cross-repository invariants
+
+This repo is one of six (hexagonal + layered × Java/.NET/Python) that must stay **functionally
+identical**. `AyvalikBankContractTests` is one black-box HTTP suite run against all six, and CI runs
+it on every push. Before changing any endpoint, status code, field name or JSON shape, check whether
+the change belongs in all six.
+
+- Wire format is **camelCase**; validation failures are **400** (not FastAPI's default 422).
+- Enums travel as **strings** (`"USD"`), never numbers.
+- Refactoring write-ups live in `Refactorings.md`; the Java hexagonal repo is the reference.
+
 ## Commands
 
 ```bash
+# Browsable API docs once the app is running: /docs
+# Shared contract suite (from AyvalikBankContractTests):
+#   BANK_BASE_URL=http://localhost:8000 pytest tests/
+
 docker compose up -d                                     # Postgres on port 5436
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q                                      # all 66 tests
 .venv/bin/uvicorn ayvalikbank_ha.main:app --reload
+
+# Run without Docker (uvicorn defaults to port 8000)
+DATABASE_URL="sqlite+aiosqlite:///./dev.db" .venv/bin/uvicorn ayvalikbank_ha.main:app
 ```
+
+## Environment gotchas
+
+- **The venv hardcodes an absolute interpreter path** — moving the repo breaks it. Recreate with
+  `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`.
+- **`from __future__ import annotations` hides missing imports** until something resolves the
+  annotation. A missing port import passed every test and CI, and only broke `/openapi.json`.
 
 ## Architecture
 
@@ -36,6 +61,14 @@ adapter/out/security/        — BcryptPasswordHasherAdapter
 config/                      — admin_seeder
 main.py                      — composition root: DI wiring lives here
 ```
+
+## Design Decisions (2026-08 hardening pass)
+
+- **Ownership authorization**: every customer-facing command carries the caller's id, taken from the authenticated principal — never from a route or query parameter. Transfers check the **source only**; the target is deliberately unchecked. Opening an account takes no owner id: the caller is the owner. See `Refactorings.md`.
+- **Optimistic locking**: accounts carry a version token. A conflict surfaces at commit and maps to HTTP 409.
+- **Domain refusal vocabulary**: the domain refuses through `AccountRuleViolation` and four subtypes; the application layer translates by **type**, never by matching on the exception message.
+- **`TransactionAmount` vs `Money`**: `Money` is signed (overdraft), so it cannot enforce positivity. `TransactionAmount` is strictly positive by construction and types the command surface. Balances, fees and recorded transaction amounts stay `Money` — zero is legal for all three.
+- **Actor-shaped ports**: driving ports are grouped by *actor × subject*, not one per method. A port is one conversation with one kind of outside actor.
 
 ## Key Decisions (preserved from the Java sibling)
 
