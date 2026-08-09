@@ -16,6 +16,7 @@ the change belongs in all six.
 - Wire format is **camelCase**; validation failures are **400** (not FastAPI's default 422).
 - Enums travel as **strings** (`"USD"`), never numbers.
 - Refactoring write-ups live in `Refactorings.md`; the Java hexagonal repo is the reference.
+- The suite is 29 tests; all six implementations currently pass 29/29.
 
 ## Commands
 
@@ -26,7 +27,7 @@ the change belongs in all six.
 
 docker compose up -d                                     # Postgres on port 5436, database ayvalikbank_ha_python
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/pytest -q                                      # all 66 tests
+.venv/bin/pytest -q                                      # all 102 tests
 .venv/bin/uvicorn ayvalikbank_ha.main:app --port 8000 --reload
 
 # Run without Docker (port 8000; LA-Python uses 8001)
@@ -39,6 +40,21 @@ DATABASE_URL="sqlite+aiosqlite:///./dev.db" .venv/bin/uvicorn ayvalikbank_ha.mai
   `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`.
 - **`from __future__ import annotations` hides missing imports** until something resolves the
   annotation. A missing port import passed every test and CI, and only broke `/openapi.json`.
+- **`.env` silently overrides `DEFAULT_DB_URL` in `main.py`.** `.env.example` was once wrong on
+  user, password *and* port, and had been copied to a real `.env` — so the app connected to a native
+  PostgreSQL on 5432 instead of its own container. Keep `.env.example` in step with
+  `docker-compose.yml`; it exists to be copied.
+
+## Ports and databases
+
+This repo: app **8000**, PostgreSQL **5436**, database `ayvalikbank_ha_python`.
+
+All six repos take distinct application and PostgreSQL ports so every one can run at the same
+time; `README.md` carries the full table. **5432 is deliberately unused** — it is the default for
+a native PostgreSQL (Postgres.app, Homebrew), and an application pointed at it connects to that
+server instead of its own container, with no error to say so. Every compose service sets an
+explicit `container_name`: without one Compose derives a name from the directory, and a container
+can outlive the checkout that defined it while still holding its port.
 
 ## Architecture
 
