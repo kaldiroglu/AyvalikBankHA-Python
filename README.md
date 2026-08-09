@@ -95,30 +95,20 @@ tests/                     — pytest unit tests (66)
 The six Ayvalık Bank implementations are meant to be compared side by side, so every one
 takes its own application port and its own PostgreSQL port. All six can run at once.
 
-| Repo | App | PostgreSQL | Database |
-|---|---|---|---|
-| `AyvalikBankHA-JAVA` | **8080** | **5437** | `ayvalikbank_ha_java` |
-| `AyvalikBankLA-JAVA` | **8081** | **5438** | `ayvalikbank_la_java` |
-| `AyvalikBankHA-NET` | **5080** | **5434** | `ayvalikbank_ha_net` |
-| `AyvalikBankLA-NET` | **5050** | **5433** | `ayvalikbank_la_net` |
-| `AyvalikBankHA-Python` | **8000** | **5436** | `ayvalikbank` |
-| `AyvalikBankLA-Python` | **8001** | **5435** | `ayvalikbank` |
+| Repo | App | PostgreSQL | Database | Port pinned by |
+|---|---|---|---|---|
+| `AyvalikBankHA-JAVA` | **8080** | **5437** | `ayvalikbank_ha_java` | Spring Boot's default — nothing to configure |
+| `AyvalikBankLA-JAVA` | **8081** | **5438** | `ayvalikbank_la_java` | `server.port=8081` in `application.properties` |
+| `AyvalikBankHA-NET` | **5080** | **5434** | `ayvalikbank_ha_net` | `--urls http://localhost:5080`, **required** — there is no `launchSettings.json`, and without the flag Kestrel binds 5000 |
+| `AyvalikBankLA-NET` | **5050** | **5433** | `ayvalikbank_la_net` | `AyvalikBankLA.Api/Properties/launchSettings.json` |
+| `AyvalikBankHA-Python` | **8000** | **5436** | `ayvalikbank` | `--port 8000` on the uvicorn command line |
+| `AyvalikBankLA-Python` | **8001** | **5435** | `ayvalikbank` | `--port 8001` on the uvicorn command line |
 
 **5432 is deliberately left free** for a native PostgreSQL install (Postgres.app, Homebrew).
 A container bound to it collides, and — worse — an application pointed at it connects to the
-native server instead of its own container without any error to say so.
-
-Each stack pins its port differently, because each offers a different mechanism:
-
-| Repo | Where its port comes from |
-|---|---|
-| `AyvalikBankHA-JAVA` | Spring Boot's default 8080 — nothing to configure |
-| `AyvalikBankLA-JAVA` | `server.port=8081` in `application.properties` |
-| `AyvalikBankHA-NET` | no `launchSettings.json`, so `--urls http://localhost:5080` is **required** — without it Kestrel binds 5000 |
-| `AyvalikBankLA-NET` | `AyvalikBankLA.Api/Properties/launchSettings.json` |
-| `AyvalikBankHA-Python` | `--port 8000` on the uvicorn command line |
-| `AyvalikBankLA-Python` | `--port 8001` on the uvicorn command line |
+native server instead of its own container with no error to say so.
 
 The two Python repos are the fragile pair: uvicorn takes its port as a launch argument and
 has no configuration file to default it in, so **omitting `--port` gives both 8000** and the
-second one to start fails to bind. The documented commands always pass it explicitly.
+second one to start fails to bind. The documented commands always pass it explicitly. Spring
+Boot and ASP.NET pin theirs in files, so those hold however the app is launched.
