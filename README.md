@@ -101,8 +101,8 @@ takes its own application port and its own PostgreSQL port. All six can run at o
 | `AyvalikBankLA-JAVA` | **8081** | **5438** | `ayvalikbank_la_java` | `server.port=8081` in `application.properties` |
 | `AyvalikBankHA-NET` | **5080** | **5434** | `ayvalikbank_ha_net` | `--urls http://localhost:5080`, **required** — there is no `launchSettings.json`, and without the flag Kestrel binds 5000 |
 | `AyvalikBankLA-NET` | **5050** | **5433** | `ayvalikbank_la_net` | `AyvalikBankLA.Api/Properties/launchSettings.json` |
-| `AyvalikBankHA-Python` | **8000** | **5436** | `ayvalikbank` | `--port 8000` on the uvicorn command line |
-| `AyvalikBankLA-Python` | **8001** | **5435** | `ayvalikbank` | `--port 8001` on the uvicorn command line |
+| `AyvalikBankHA-Python` | **8000** | **5436** | `ayvalikbank_ha_python` | `--port 8000` on the uvicorn command line |
+| `AyvalikBankLA-Python` | **8001** | **5435** | `ayvalikbank_la_python` | `--port 8001` on the uvicorn command line |
 
 **5432 is deliberately left free** for a native PostgreSQL install (Postgres.app, Homebrew).
 A container bound to it collides, and — worse — an application pointed at it connects to the

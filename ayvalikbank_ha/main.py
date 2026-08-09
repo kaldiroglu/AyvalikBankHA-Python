@@ -31,7 +31,7 @@ from .application.service import AccountApplicationService, CustomerApplicationS
 from .config import seed_admin
 from .domain.service import PasswordValidationService, TransferDomainService
 
-DEFAULT_DB_URL = "postgresql+asyncpg://bank:bank@localhost:5436/ayvalikbank"
+DEFAULT_DB_URL = "postgresql+asyncpg://bank:bank@localhost:5436/ayvalikbank_ha_python"
 
 
 def create_app(database_url: str | None = None) -> FastAPI:

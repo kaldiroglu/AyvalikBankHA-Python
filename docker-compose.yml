@@ -1,8 +1,9 @@
 services:
   postgres:
     image: postgres:16
+    container_name: ayvalikbank-ha-python-postgres
     environment:
-      POSTGRES_DB: ayvalikbank
+      POSTGRES_DB: ayvalikbank_ha_python
       POSTGRES_USER: bank
       POSTGRES_PASSWORD: bank
     ports:
